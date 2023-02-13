@@ -4,8 +4,12 @@
 
 package frc.robot;
 
+import edu.wpi.first.wpilibj.Compressor;
+import edu.wpi.first.wpilibj.DoubleSolenoid;
+import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -27,6 +31,10 @@ public class Robot extends TimedRobot {
   private DifferentialDrive mydrive;
   private XboxController xboxController = new XboxController(0);
 
+
+  private final Compressor comp = new Compressor(9, PneumaticsModuleType.REVPH);
+  private final DoubleSolenoid solenoid = new DoubleSolenoid(9, PneumaticsModuleType.REVPH, 0, 2);
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -39,6 +47,8 @@ public class Robot extends TimedRobot {
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3);
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight());
+
+    comp.disable();
   }
 
   /**
@@ -84,13 +94,38 @@ public class Robot extends TimedRobot {
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    comp.disable();
+    solenoid.set(Value.kOff);
+  }
 
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-    TurboModeRobot();
-    ControlRobot();    
+    // TurboModeRobot();
+    // ControlRobot();
+    ControlCompressor();
+    
+
+    
+
+
+  }
+
+  private void ControlCompressor(){
+    if (xboxController.getAButton()) {
+      comp.enableDigital();
+    } 
+    else if (xboxController.getBButton()) {
+      comp.disable();
+    } 
+
+    if (xboxController.getRightBumper()) {
+      solenoid.set(Value.kReverse);
+    }
+    if (xboxController.getLeftBumper()) {
+      solenoid.set(Value.kForward);
+    }
   }
 
   private void ControlRobot(){
