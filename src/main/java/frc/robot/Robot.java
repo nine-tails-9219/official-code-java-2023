@@ -4,7 +4,11 @@
 
 package frc.robot;
 
+import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.can.VictorSPX;
+
 import edu.wpi.first.wpilibj.Compressor;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -28,8 +32,17 @@ public class Robot extends TimedRobot {
 
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4;
+  private final int IDMOTORELEVARION = 10;
   private DifferentialDrive mydrive;
-  private XboxController xboxController = new XboxController(0);
+  private XboxController xboxControllerRobot = new XboxController(0);
+  private XboxController xboxControllerIntake = new XboxController(1);
+
+  private VictorSPX motorElevation = new VictorSPX(IDMOTORELEVARION);
+  private int factorUp = 1;
+  private int factorDown = 1;
+
+  private final DigitalInput elevationInputUp = new DigitalInput(0);
+  private final DigitalInput elevationInputDown = new DigitalInput(1);
 
 
   private final Compressor comp = new Compressor(9, PneumaticsModuleType.REVPH);
@@ -47,6 +60,9 @@ public class Robot extends TimedRobot {
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3);
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight());
+    mydrive.setSafetyEnabled(false);
+
+    motorElevation.set(ControlMode.PercentOutput,0);
 
     comp.disable();
   }
@@ -104,33 +120,57 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     // TurboModeRobot();
     // ControlRobot();
-    ControlCompressor();
+    // ControlCompressor();
+    ControlElevation();
     
+  }
 
+  private void ControlElevation(){
+    if(elevationInputUp.get() == true){
+      factorUp = 0;
+    }
+    else{
+      factorUp = 1;
+    }
+
+    if(elevationInputDown.get() == true){
+      factorDown = 0;
+    }
+    else{
+      factorDown = 1;
+    }
+
+    if(xboxControllerIntake.getRightY()>0){
+      motorElevation.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY()*0.5*factorUp);
+    }
+    else if(xboxControllerIntake.getRightY()<0){
+      motorElevation.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY()*0.5*factorDown);
+    }
+    else{
+      motorElevation.set(ControlMode.PercentOutput,0);
+    }
     
-
-
   }
 
   private void ControlCompressor(){
-    if (xboxController.getAButton()) {
+    if (xboxControllerRobot.getAButton()) {
       comp.enableDigital();
     } 
-    else if (xboxController.getBButton()) {
+    else if (xboxControllerRobot.getBButton()) {
       comp.disable();
     } 
 
-    if (xboxController.getRightBumper()) {
+    if (xboxControllerRobot.getRightBumper()) {
       solenoid.set(Value.kReverse);
     }
-    if (xboxController.getLeftBumper()) {
+    if (xboxControllerRobot.getLeftBumper()) {
       solenoid.set(Value.kForward);
     }
   }
 
   private void ControlRobot(){
-    if (Math.abs(xboxController.getLeftY()) >= 0.05 || Math.abs(xboxController.getLeftX()) >= 0.05) {  // Movendo Joystick
-      mydrive.arcadeDrive(xboxController.getLeftY(), xboxController.getLeftX()*1.2);
+    if (Math.abs(xboxControllerRobot.getLeftY()) >= 0.05 || Math.abs(xboxControllerRobot.getLeftX()) >= 0.05) {  // Movendo Joystick
+      mydrive.arcadeDrive(xboxControllerRobot.getLeftY(), xboxControllerRobot.getLeftX()*1.2);
     }
     else {
       motores.StopMotors();
@@ -138,10 +178,10 @@ public class Robot extends TimedRobot {
   }
 
   private void TurboModeRobot(){
-    if (xboxController.getLeftTriggerAxis() > 0) {
+    if (xboxControllerRobot.getLeftTriggerAxis() > 0) {
       mydrive.setMaxOutput(0.3);
     }
-    else if (xboxController.getRightTriggerAxis() > 0) {
+    else if (xboxControllerRobot.getRightTriggerAxis() > 0) {
       mydrive.setMaxOutput(1);
     }
     else {
