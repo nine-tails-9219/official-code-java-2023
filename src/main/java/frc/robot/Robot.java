@@ -7,6 +7,12 @@ package frc.robot;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.CvSink;
+import edu.wpi.first.cscore.CvSource;
+import edu.wpi.first.cscore.MjpegServer;
+import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.cscore.VideoMode.PixelFormat;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
@@ -15,8 +21,14 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardComponent;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -48,6 +60,8 @@ public class Robot extends TimedRobot {
   private final Compressor comp = new Compressor(9, PneumaticsModuleType.REVPH);
   private final DoubleSolenoid solenoid = new DoubleSolenoid(9, PneumaticsModuleType.REVPH, 0, 2);
 
+
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -65,7 +79,29 @@ public class Robot extends TimedRobot {
     motorElevation.set(ControlMode.PercentOutput,0);
 
     comp.disable();
-  }
+
+    new Thread(() -> {
+      UsbCamera camera = CameraServer.startAutomaticCapture();
+      camera.setResolution(640, 480);
+
+      CvSink cvSink = CameraServer.getVideo();
+      CvSource outputStream = CameraServer.putVideo("Blur", 640, 480);
+
+      Mat source = new Mat();
+      Mat output = new Mat();
+
+      while(!Thread.interrupted()) {
+          cvSink.grabFrame(source);
+          Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2BGR555);
+          outputStream.putFrame(output);
+      }
+  }).start();
+}
+
+    /* 
+    usbCamera = CameraServer.startAutomaticCapture();
+    usbCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
+    usbCamera.setBrightness(20); */
 
   /**
    * This function is called every 20 ms, no matter the mode. Use this for items like diagnostics
@@ -118,10 +154,14 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-    // TurboModeRobot();
-    // ControlRobot();
+    TurboModeRobot();
+    ControlRobot();
+
+
+
     // ControlCompressor();
-    ControlElevation();
+    //ControlElevation();
+    // motorElevation.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY()*factorUp*-1);
     
   }
 
@@ -169,11 +209,15 @@ public class Robot extends TimedRobot {
   }
 
   private void ControlRobot(){
-    if (Math.abs(xboxControllerRobot.getLeftY()) >= 0.05 || Math.abs(xboxControllerRobot.getLeftX()) >= 0.05) {  // Movendo Joystick
+    if (xboxControllerRobot.getAButton()) {
+      mydrive.stopMotor();
+    }
+    else if (Math.abs(xboxControllerRobot.getLeftY()) >= 0.05 || Math.abs(xboxControllerRobot.getLeftX()) >= 0.05) {  // Movendo Joystick
       mydrive.arcadeDrive(xboxControllerRobot.getLeftY(), xboxControllerRobot.getLeftX()*1.2);
     }
     else {
-      motores.StopMotors();
+      // motores.StopMotors();
+      mydrive.stopMotor();
     }
   }
 
@@ -188,7 +232,6 @@ public class Robot extends TimedRobot {
       mydrive.setMaxOutput(0.5);
     }
   }
-
   
 
   /** This function is called once when the robot is disabled. */
