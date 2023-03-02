@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.opencv.core.Mat;
 import org.opencv.imgproc.Imgproc;
+import edu.wpi.first.wpilibj.Timer;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -60,7 +61,7 @@ public class Robot extends TimedRobot {
   private final Compressor comp = new Compressor(9, PneumaticsModuleType.REVPH);
   private final DoubleSolenoid solenoid = new DoubleSolenoid(9, PneumaticsModuleType.REVPH, 0, 2);
 
-
+  private final Timer m_timer = new Timer();
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -80,6 +81,7 @@ public class Robot extends TimedRobot {
 
     comp.disable();
 
+    /* 
     new Thread(() -> {
       UsbCamera camera = CameraServer.startAutomaticCapture();
       camera.setResolution(640, 480);
@@ -96,6 +98,8 @@ public class Robot extends TimedRobot {
           outputStream.putFrame(output);
       }
   }).start();
+
+  */
 }
 
     /* 
@@ -125,22 +129,26 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
+    m_timer.restart();
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-      case kCustomAuto:
-        // Put custom auto code here
-        break;
-      case kDefaultAuto:
-      default:
-        // Put default auto code here
-        break;
+    // Drive for 2 seconds
+
+    if (m_timer.get() < 2.0) {
+      // Drive forwards half speed, make sure to turn input squaring off
+      mydrive.tankDrive(-0.6, -0.6);
+    }
+    else if (m_timer.get() >= 2.0 && m_timer.get() < 4.0){
+      mydrive.tankDrive(0.6, -0.6);
+    }
+    else if (m_timer.get() >= 4.0 && m_timer.get() < 6.0){
+      mydrive.tankDrive(-0.6, -0.6);
+    }
+    else {
+      mydrive.stopMotor(); // stop robot
     }
   }
 
@@ -156,15 +164,15 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     TurboModeRobot();
     ControlRobot();
-
-
-
     // ControlCompressor();
     //ControlElevation();
     // motorElevation.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY()*factorUp*-1);
     
-  }
 
+
+  }
+ 
+  /* 
   private void ControlElevation(){
     if(elevationInputUp.get() == true){
       factorUp = 0;
@@ -207,6 +215,7 @@ public class Robot extends TimedRobot {
       solenoid.set(Value.kForward);
     }
   }
+*/
 
   private void ControlRobot(){
     if (xboxControllerRobot.getAButton()) {
