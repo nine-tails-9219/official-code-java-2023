@@ -45,12 +45,14 @@ public class Robot extends TimedRobot {
 
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4;
-  private final int IDMOTORELEVARION = 10;
+  private final int IDMOTORELEVATION = 10;
+  private final int IDMOTORARMFORWARD = 11;
   private DifferentialDrive mydrive;
   private XboxController xboxControllerRobot = new XboxController(0);
   private XboxController xboxControllerIntake = new XboxController(1);
 
-  private VictorSPX motorElevation = new VictorSPX(IDMOTORELEVARION);
+  private VictorSPX motorElevation = new VictorSPX(IDMOTORELEVATION);
+  private VictorSPX motorArmForward = new VictorSPX(IDMOTORARMFORWARD);
   private int factorUp = 1;
   private int factorDown = 1;
 
@@ -80,27 +82,9 @@ public class Robot extends TimedRobot {
     motorElevation.set(ControlMode.PercentOutput,0);
 
     comp.disable();
-
-    /* 
-    new Thread(() -> {
-      UsbCamera camera = CameraServer.startAutomaticCapture();
-      camera.setResolution(640, 480);
-
-      CvSink cvSink = CameraServer.getVideo();
-      CvSource outputStream = CameraServer.putVideo("Blur", 640, 480);
-
-      Mat source = new Mat();
-      Mat output = new Mat();
-
-      while(!Thread.interrupted()) {
-          cvSink.grabFrame(source);
-          Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2BGR555);
-          outputStream.putFrame(output);
-      }
-  }).start();
-
-  */
 }
+
+  // CONFIG CÂMERA
 
     /* 
     usbCamera = CameraServer.startAutomaticCapture();
@@ -135,7 +119,7 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    // Drive for 2 seconds
+    /* 
 
     if (m_timer.get() < 2.0) {
       // Drive forwards half speed, make sure to turn input squaring off
@@ -150,6 +134,8 @@ public class Robot extends TimedRobot {
     else {
       mydrive.stopMotor(); // stop robot
     }
+
+    */
   }
 
   /** This function is called once when teleop is enabled. */
@@ -162,16 +148,25 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-    TurboModeRobot();
-    ControlRobot();
-    // ControlCompressor();
+    //TurboModeRobot();
+    //ControlRobot();
+    //ControlCompressor();
     //ControlElevation();
-    // motorElevation.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY()*factorUp*-1);
-    
-
-
+    ControlArmForward();
   }
  
+  private void ControlArmForward(){
+    if(xboxControllerIntake.getRightY()>0){
+      motorArmForward.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY());
+    }
+    else if(xboxControllerIntake.getRightY()<0){
+      motorArmForward.set(ControlMode.PercentOutput,xboxControllerIntake.getRightY());
+    }
+    else{
+      motorArmForward.set(ControlMode.PercentOutput,0);
+    }
+  }
+
   /* 
   private void ControlElevation(){
     if(elevationInputUp.get() == true){
@@ -215,7 +210,7 @@ public class Robot extends TimedRobot {
       solenoid.set(Value.kForward);
     }
   }
-*/
+  
 
   private void ControlRobot(){
     if (xboxControllerRobot.getAButton()) {
@@ -242,6 +237,7 @@ public class Robot extends TimedRobot {
     }
   }
   
+  */
 
   /** This function is called once when the robot is disabled. */
   @Override
