@@ -1,7 +1,6 @@
 package frc.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 
 public class Motor {
@@ -40,5 +39,5 @@ public class Motor {
     public void StopMotors() {
         leftMotors.set(0.05);
         rightMotors.set(0.05);
-      }
+    }
 }

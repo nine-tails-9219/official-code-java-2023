@@ -4,10 +4,8 @@
 
 package frc.robot;
 
-
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.cscore.VideoMode.PixelFormat;
@@ -20,7 +18,6 @@ import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-
 
 /*
   ID Controles:
@@ -36,13 +33,14 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
   IDs de Intake:
     • 5: Elevação Vertical
     • 6: Estender Horizontal (movimento horizontal)
+    • 7: Angulação do braço (movimento angular)
 
-  ID PneumaticHUB: 7
+  ID PneumaticHUB: 8
 
 */
 
-
 public class Robot extends TimedRobot {
+
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
@@ -60,13 +58,10 @@ public class Robot extends TimedRobot {
   private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
   private WPI_VictorSPX motorArmController = new WPI_VictorSPX(IDMOTOR7);
 
+  private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
+  private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
 
-  //private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
-  //private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
-
-  
   //#endregion
-
 
   @Override
   public void robotInit() {
@@ -79,17 +74,14 @@ public class Robot extends TimedRobot {
     armCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
     tankCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
 
-
-
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
 
-    //compressor.enableDigital();  // Ativa o compressor
+    compressor.enableDigital();  // Ativa o compressor
   }
 
   @Override
   public void robotPeriodic() {}
-
 
   @Override
   public void autonomousInit() {
@@ -100,15 +92,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-      case kCustomAuto:
-        // Put custom auto code here
-        break;
-      case kDefaultAuto:
-      default:
-        // Put default auto code here
-        break;
-    }
+    // Criar período autônomo
   }
 
   @Override
@@ -118,8 +102,8 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    // TankController(); // Controla a movimentação do robô
-    ControlBody();  // Controla a elevação vertical, o movimento do braço  e o de coleta
+    TankController(); // Controla a movimentação do robô
+    ControlBody(); // Controla a elevação vertical, o movimento do braço  e o de coleta
   }
 
   //#region TankControlller
@@ -158,7 +142,7 @@ public class Robot extends TimedRobot {
     ControlElevation();
     ExtendArm();
     ControlArm();
-    // CollectController();
+    ControlIntake();
   }
 
   private void ControlElevation() {  
@@ -195,12 +179,12 @@ public class Robot extends TimedRobot {
   }
 
   private void ControlIntake() {
-    /*if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
+    if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
       doubleSolenoid.set(Value.kReverse);
     }
     else if (xboxControllerAttachments.getRightBumper()) {  // Fecahr
       doubleSolenoid.set(Value.kForward);
-    }*/
+    }
   }
 
   //#endregion
