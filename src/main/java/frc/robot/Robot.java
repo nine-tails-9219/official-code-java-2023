@@ -69,10 +69,12 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
-    UsbCamera armCamera = CameraServer.startAutomaticCapture(0);
-    UsbCamera tankCamera = CameraServer.startAutomaticCapture(1);
-    armCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
-    tankCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
+    // UsbCamera armCamera = CameraServer.startAutomaticCapture(0);
+    // UsbCamera tankCamera = CameraServer.startAutomaticCapture(1);
+    // armCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
+    // tankCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
+    UsbCamera camera = CameraServer.startAutomaticCapture();
+    camera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
@@ -80,6 +82,9 @@ public class Robot extends TimedRobot {
     compressor.enableDigital();  // Ativa o compressor
 
     motorElevation.setInverted(true);
+
+    doubleSolenoid.set(Value.kOff);
+
   }
 
   @Override
@@ -128,7 +133,10 @@ public class Robot extends TimedRobot {
   }
 
   private void MovimentationTank(){
-    if (Math.abs(xboxControllerTank.getLeftY()) >= 0.05 || Math.abs(xboxControllerTank.getLeftX()) >= 0.05) {  // Movendo Joystick
+    if (xboxControllerTank.getAButton()) {
+      mydrive.stopMotor();
+    }
+    else if (Math.abs(xboxControllerTank.getLeftY()) >= 0.05 || Math.abs(xboxControllerTank.getLeftX()) >= 0.05) {  // Movendo Joystick
       mydrive.arcadeDrive(xboxControllerTank.getLeftY(), xboxControllerTank.getLeftX()*1.2);
     }
     else {
