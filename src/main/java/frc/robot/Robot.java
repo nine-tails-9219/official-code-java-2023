@@ -54,9 +54,9 @@ public class Robot extends TimedRobot {
   private DifferentialDrive mydrive;
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8;
-  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR5);
+  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
   private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
-  private WPI_VictorSPX motorArmController = new WPI_VictorSPX(IDMOTOR7);
+  private WPI_VictorSPX motorArmController = new WPI_VictorSPX(IDMOTOR5);
 
   private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
   private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
@@ -78,6 +78,8 @@ public class Robot extends TimedRobot {
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
 
     compressor.enableDigital();  // Ativa o compressor
+
+    motorElevation.setInverted(true);
   }
 
   @Override
@@ -104,7 +106,19 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     TankController(); // Controla a movimentação do robô
     ControlBody(); // Controla a elevação vertical, o movimento do braço  e o de coleta
+    ControlCompressor();// Controla o compressor
+    
   }
+
+  //#region Control Compressor
+  public void ControlCompressor(){
+    SmartDashboard.putBoolean("Compressor", compressor.getPressureSwitchValue());
+
+    if (xboxControllerAttachments.getAButton()){
+      compressor.enableDigital();
+    }
+  }
+  //#region
 
   //#region TankControlller
   
