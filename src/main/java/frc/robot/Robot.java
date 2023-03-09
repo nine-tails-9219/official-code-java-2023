@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Timer;
 
 /*
   ID Controles:
@@ -43,8 +44,8 @@ public class Robot extends TimedRobot {
 
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
-  private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
+  private final Timer m_timer = new Timer();
 
   //#region Definindo variáveis de controles, motores, pneumática e câmera
 
@@ -85,14 +86,19 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
+    m_timer.restart();
   }
 
   @Override
   public void autonomousPeriodic() {
-    // Criar período autônomo
+    // Drive for 2 seconds
+    if (m_timer.get() < 3.5) {
+      // Drive forwards half speed, make sure to turn input squaring off
+      mydrive.tankDrive(-0.7, -0.7);
+    } else {
+      mydrive.stopMotor();
+      mydrive.tankDrive(0.01, 0.01);; // stop robot
+    }
   }
 
   @Override
