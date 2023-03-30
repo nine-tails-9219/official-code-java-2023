@@ -1,22 +1,38 @@
 package frc.robot;
 
-import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+import com.ctre.phoenix.sensors.CANCoder;
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 
+
 public class Motor {
-    private WPI_VictorSPX leftMotor1;
-    private WPI_VictorSPX leftMotor2;
-    private WPI_VictorSPX rightMotor1;
-    private WPI_VictorSPX rightMotor2;
+    private CANSparkMax leftMotor1;
+    private CANSparkMax leftMotor2;
+    private CANSparkMax rightMotor1;
+    private CANSparkMax rightMotor2;
+
+    private RelativeEncoder leftEncoder1;
+    private RelativeEncoder rightEncoder1;
+
+
+    // private Encoder leftEncoder;
+    // private Encoder rightEncoder;
 
     private MotorControllerGroup leftMotors;
     private MotorControllerGroup rightMotors;
 
     public Motor(int idLeftMotor1, int idLeftMotor2, int idRightMotor1, int idRightMotor2){
-        leftMotor1 = new WPI_VictorSPX(idLeftMotor1);
-        leftMotor2 = new WPI_VictorSPX(idLeftMotor2);
-        rightMotor1 = new WPI_VictorSPX(idRightMotor1);
-        rightMotor2 = new WPI_VictorSPX(idRightMotor2);
+        leftMotor1 = new CANSparkMax(idLeftMotor1, MotorType.kBrushless);
+        leftMotor2 = new CANSparkMax(idLeftMotor2, MotorType.kBrushless);
+        rightMotor1 = new CANSparkMax(idRightMotor1, MotorType.kBrushless);
+        rightMotor2 = new CANSparkMax(idRightMotor2, MotorType.kBrushless);
+
+        leftEncoder1 = leftMotor1.getEncoder();
+        rightEncoder1 = leftMotor2.getEncoder();
 
         leftMotors = new MotorControllerGroup(leftMotor1, leftMotor2);
         rightMotors = new MotorControllerGroup(rightMotor1, rightMotor2);
@@ -39,5 +55,13 @@ public class Motor {
     public void StopMotors() {
         leftMotors.set(0.05);
         rightMotors.set(0.05);
+    }
+
+    public RelativeEncoder GetLeftEncoder() {
+        return leftEncoder1;
+    }
+
+    public RelativeEncoder GetRightEncoder() {
+        return rightEncoder1;
     }
 }
