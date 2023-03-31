@@ -10,14 +10,13 @@ import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 
 
 public class Motor {
-    private CANSparkMax leftMotor1;
-    private CANSparkMax leftMotor2;
-    private CANSparkMax rightMotor1;
-    private CANSparkMax rightMotor2;
+    public CANSparkMax leftMotor1;
+    public CANSparkMax leftMotor2;
+    public CANSparkMax rightMotor1;
+    public CANSparkMax rightMotor2;
 
-    private RelativeEncoder leftEncoder1;
+    public RelativeEncoder leftEncoder1;
     private RelativeEncoder rightEncoder1;
-
 
     // private Encoder leftEncoder;
     // private Encoder rightEncoder;
@@ -38,6 +37,7 @@ public class Motor {
         rightMotors = new MotorControllerGroup(rightMotor1, rightMotor2);
 
         InvertedMotorLeft();
+
     }
 
     private void InvertedMotorLeft(){

@@ -23,6 +23,8 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim.KitbotWheelSize;
+
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -66,22 +68,25 @@ public class Robot extends TimedRobot {
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
   private CANSparkMax motorArmController = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
-  // private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
-  // private WPI_VictorSPX motorArmController = new WPI_VictorSPX(IDMOTOR5);
+  private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
+  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
 
   // Encoder(s)
   private double valueEncoderMotorArmController = 0;
 
   // Pneumática
 
-  // private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
-  // private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
+  private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
+  private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
 
   // Pigeon 2.0
   private Pigeon2 pigeon2 = new Pigeon2(IDPIGEON);
   private double angleRobot = 0;
   private double angleRobotRounded = 0;
   private boolean climb = false;
+
+  // Timer
+  private final Timer esperaTimer = new Timer();
 
   //#endregion
 
@@ -103,15 +108,17 @@ public class Robot extends TimedRobot {
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
     // compressor.enableDigital();  // Ativa o compressor
+    compressor.disable();
 
-    // doubleSolenoid.set(Value.kOff);
-
-    // motores.GetLeftEncoder()
-    // motores.GetRightEncoder().reset();
-    //motorArmController.getEncoder().setPosition(10);
+    doubleSolenoid.set(Value.kOff);
 
     mydrive.setSafetyEnabled(false);
     climb = false;
+
+    motorArmController.setInverted(true);
+
+    motorArmController.getEncoder().setPosition(0);
+    valueEncoderMotorArmController = 0;
   }
 
   @Override
@@ -125,6 +132,15 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
   
     SmartDashboard.putBoolean("Subiu", climb);
+    SmartDashboard.putBoolean("Parar", stop);
+    SmartDashboard.putNumber("Ângulo", angleRobotRounded);
+    angleRobot = (pigeon2.getRoll() * -1) - 5;
+    // angleRobotRounded = Math.round(angleRobot * 100) / 100;
+    angleRobotRounded = (angleRobot * 100) / 100;
+
+    SmartDashboard.putNumber("Timer", esperaTimer.get());
+
+    SmartDashboard.putNumber("Velocidade", motores.leftEncoder1.getVelocity());
   }
 
   //#endregion
@@ -139,8 +155,13 @@ public class Robot extends TimedRobot {
     motores.GetRightEncoder().setPosition(0.0);
     mydrive.setMaxOutput(1);*/
 
+    esperaTimer.restart();
+
     mydrive.setMaxOutput(1.0);
     pigeon2.configFactoryDefault();
+
+    climb = false;
+    stop = false;
   }
 
   final double kP = 0.005;
@@ -148,17 +169,13 @@ public class Robot extends TimedRobot {
   boolean stop = false;
   
   @Override
-  public void autonomousPeriodic() {
-
-    angleRobot = (pigeon2.getRoll() * -1);
-    angleRobotRounded = Math.round(angleRobot * 100) / 100;
-    SmartDashboard.putNumber("Ângulo", angleRobotRounded);
+  public void autonomousPeriodic() {    
     
     if (angleRobotRounded > 4) {
       climb = true;
     }
 
-    if (climb == true && angleRobotRounded > -0.5 && angleRobotRounded < 0.5){
+    if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
       stop = true;
     }
 
@@ -166,14 +183,23 @@ public class Robot extends TimedRobot {
       mydrive.tankDrive(-0.4, -0.4);
     }
     else if (angleRobotRounded < 10 && stop == false) {
-      mydrive.tankDrive(-0.3, -0.3);
+      mydrive.tankDrive(-0.35, -0.35);
     }
     else if (angleRobotRounded >= 10 && stop == false) {
-      mydrive.tankDrive(-0.15, -0.15);
+      mydrive.tankDrive(-0.35, -0.35);
     }
     else if (stop == true) {
-      mydrive.tankDrive(0, 0);
+      if (angleRobotRounded > 4.3) {  // 4
+        mydrive.tankDrive(-0.25, -0.25);
+      }
+      else if (angleRobotRounded < -4.3){ // -4
+        mydrive.tankDrive(0.3, 0.3);  // 0.25
+      }
+      else {
+        mydrive.tankDrive(0, 0);
+      }
     }
+  }
 
     /* 
     if (motores.GetLeftEncoder().getPosition() < 10.5 && motores.GetRightEncoder().getPosition() < 10.5) {
@@ -184,7 +210,6 @@ public class Robot extends TimedRobot {
       mydrive.tankDrive(0, 0);
     }
     */
-  }
 
   //#endregion
   
@@ -247,13 +272,20 @@ public class Robot extends TimedRobot {
   //#region ControlBody
 
   private void ControlBody() {
-    // ControlElevation();
-    //ExtendArm();
-    ControlArm();
-    //ControlIntake();
+    ControlElevation();
+    ExtendArm();
+    // ControlArm();
+    if(xboxControllerAttachments.getLeftY()> 0.1 && xboxControllerAttachments.getLeftY()< -0.1){
+        motorArmController.set(xboxControllerAttachments.getLeftY()*0.85);
+      }
+    else{
+        motorArmController.stopMotor();
+    }
+    // valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
+    ControlIntake();
   }
 
-  /*
+  
   private void ControlElevation() {  
     // Apenas um poderá ser acionado por vez
     if ((xboxControllerAttachments.getLeftTriggerAxis() > 0 && xboxControllerAttachments.getRightTriggerAxis() == 0) || (xboxControllerAttachments.getLeftTriggerAxis() == 0 && xboxControllerAttachments.getRightTriggerAxis() > 0)) {
@@ -270,19 +302,19 @@ public class Robot extends TimedRobot {
   }
 
   private void ExtendArm() {
-    if (xboxControllerAttachments.getLeftY() != 0) {
-      motorExtendArm.set(ControlMode.PercentOutput, xboxControllerAttachments.getLeftY());
+    if (xboxControllerAttachments.getRightY() != 0) {
+      motorExtendArm.set(ControlMode.PercentOutput, xboxControllerAttachments.getRightY());
     }
     else {
       motorExtendArm.stopMotor();
     }
   }
-  */
+  
 
   private void ControlArm() {
     valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
     if(xboxControllerAttachments.getLeftY()>0){
-      if(valueEncoderMotorArmController<0){
+      if(valueEncoderMotorArmController>0){
         motorArmController.set(xboxControllerAttachments.getLeftY()*0.85);
       }
       else{
@@ -290,7 +322,7 @@ public class Robot extends TimedRobot {
       }
     }
     else if(xboxControllerAttachments.getLeftY()<0){
-      if(valueEncoderMotorArmController>-153){
+      if(valueEncoderMotorArmController<153){
         motorArmController.set(xboxControllerAttachments.getLeftY()*0.85);
       }
       else{
@@ -330,7 +362,6 @@ public class Robot extends TimedRobot {
       motorArmController.stopMotor();
     }*/
   }
-  /*
 
   private void ControlIntake() {
     if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
@@ -340,7 +371,7 @@ public class Robot extends TimedRobot {
       doubleSolenoid.set(Value.kForward);
     }
   }
-  */
+  
 
   //#endregion
 
