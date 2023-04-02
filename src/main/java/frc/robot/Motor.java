@@ -8,7 +8,6 @@ import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 
-
 public class Motor {
     public CANSparkMax leftMotor1;
     public CANSparkMax leftMotor2;
@@ -37,7 +36,6 @@ public class Motor {
         rightMotors = new MotorControllerGroup(rightMotor1, rightMotor2);
 
         InvertedMotorLeft();
-
     }
 
     private void InvertedMotorLeft(){

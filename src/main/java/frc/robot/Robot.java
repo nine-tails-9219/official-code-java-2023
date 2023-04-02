@@ -43,12 +43,16 @@ import edu.wpi.first.wpilibj.Timer;
     • 1 e 3: Direita
     • 2 e 4: Esquerda e Invertido
 
-  IDs de Intake:
+  IDs de Body:
     • 5: Angulação do braço (movimento angular)
     • 6: Estender Horizontal (movimento horizontal)
     • 7: Elevação Vertical
 
-  ID PneumaticHUB: 8
+  ID PneumaticHUB: 
+    • 8
+
+  ID Pigeon 2.0: 
+    • 9
 */
 
 public class Robot extends TimedRobot {
@@ -68,11 +72,12 @@ public class Robot extends TimedRobot {
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
   private CANSparkMax motorArmController = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
-  private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
+  private CANSparkMax motorExtendArm = new CANSparkMax(IDMOTOR6, MotorType.kBrushless);
   private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
 
   // Encoder(s)
   private double valueEncoderMotorArmController = 0;
+  private double valueEncoderMotorExtendArm = 0;
 
   // Pneumática
 
@@ -83,10 +88,17 @@ public class Robot extends TimedRobot {
   private Pigeon2 pigeon2 = new Pigeon2(IDPIGEON);
   private double angleRobot = 0;
   private double angleRobotRounded = 0;
-  private boolean climb = false;
+
 
   // Timer
   private final Timer esperaTimer = new Timer();
+
+  // Interruptores
+  private boolean climb = false;
+  private boolean stop = false;
+  private boolean stopSolenoid = false;
+  private boolean parte2 = false;
+  private boolean parte3 = false;
 
   //#endregion
 
@@ -107,98 +119,70 @@ public class Robot extends TimedRobot {
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
-    // compressor.enableDigital();  // Ativa o compressor
-    compressor.disable();
-
-    doubleSolenoid.set(Value.kOff);
-
     mydrive.setSafetyEnabled(false);
-    climb = false;
 
     motorArmController.setInverted(true);
 
-    motorArmController.getEncoder().setPosition(0);
-    valueEncoderMotorArmController = 0;
+    compressor.enableDigital();  // Ativa o compressor
+    doubleSolenoid.set(Value.kOff);
   }
 
   @Override
   public void robotPeriodic() {
-    // SmartDashboard.putNumber("encoder value", motores.leftEncoder2.getPosition());
-    // SmartDashboard.putNumber("encoder left", motores.GetLeftEncoder().getPosition());
-    // SmartDashboard.putNumber("encoder right", motores.GetRightEncoder().getPosition());
+    //#region Updates
 
-    SmartDashboard.putNumber("Distância Rodada", GetSensorPosition());
-    SmartDashboard.putNumber("Encoder Arm", valueEncoderMotorArmController);
-    SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
-  
-    SmartDashboard.putBoolean("Subiu", climb);
-    SmartDashboard.putBoolean("Parar", stop);
-    SmartDashboard.putNumber("Ângulo", angleRobotRounded);
+    //Att encoders dos motores
+    valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
+    valueEncoderMotorExtendArm = motorExtendArm.getEncoder().getPosition() * -1;
+    
+    // Att valores Piegon 2.0
     angleRobot = (pigeon2.getRoll() * -1) - 5;
-    // angleRobotRounded = Math.round(angleRobot * 100) / 100;
     angleRobotRounded = (angleRobot * 100) / 100;
 
-    SmartDashboard.putNumber("Timer", esperaTimer.get());
+    //#endregion
 
-    SmartDashboard.putNumber("Velocidade", motores.leftEncoder1.getVelocity());
+    //#region SmartDashboard
+
+    // Encoder dos motores
+    SmartDashboard.putNumber("encoder left", motores.GetLeftEncoder().getPosition());
+    SmartDashboard.putNumber("encoder right", motores.GetRightEncoder().getPosition());
+    SmartDashboard.putNumber("Encoder Arm", valueEncoderMotorArmController);
+    SmartDashboard.putNumber("Extend Arm", valueEncoderMotorExtendArm);
+
+    // Variáveis usadas na ChargeStation() e ReverseAnd180()
+    SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
+    SmartDashboard.putNumber("Yaw (EixoX)", pigeon2.getYaw());
+    SmartDashboard.putNumber("Ângulo", angleRobotRounded);
+    SmartDashboard.putBoolean("Subiu", climb);
+    SmartDashboard.putBoolean("Parar", stop);
+
+    //#endregion
   }
 
   //#endregion
 
-  //#region Parte autonôma
+  //#region Structure Autonomous
 
   @Override
   public void autonomousInit() {
-
-    /*m_timer.restart();
-    motores.GetLeftEncoder().setPosition(0.0);
-    motores.GetRightEncoder().setPosition(0.0);
-    mydrive.setMaxOutput(1);*/
-
-    esperaTimer.restart();
-
-    mydrive.setMaxOutput(1.0);
+    pigeon2.setYaw(0);
     pigeon2.configFactoryDefault();
 
+    esperaTimer.restart();
+    mydrive.setMaxOutput(1.0);
+    
     climb = false;
     stop = false;
+
+    motores.leftEncoder1.setPosition(0);
+    motorArmController.getEncoder().setPosition(0);
   }
 
-  final double kP = 0.005;
-  double setPoint = 100;
-  boolean stop = false;
-  
   @Override
-  public void autonomousPeriodic() {    
-    
-    if (angleRobotRounded > 4) {
-      climb = true;
-    }
-
-    if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
-      stop = true;
-    }
-
-    if (climb == false) {
-      mydrive.tankDrive(-0.4, -0.4);
-    }
-    else if (angleRobotRounded < 10 && stop == false) {
-      mydrive.tankDrive(-0.35, -0.35);
-    }
-    else if (angleRobotRounded >= 10 && stop == false) {
-      mydrive.tankDrive(-0.35, -0.35);
-    }
-    else if (stop == true) {
-      if (angleRobotRounded > 4.3) {  // 4
-        mydrive.tankDrive(-0.25, -0.25);
-      }
-      else if (angleRobotRounded < -4.3){ // -4
-        mydrive.tankDrive(0.3, 0.3);  // 0.25
-      }
-      else {
-        mydrive.tankDrive(0, 0);
-      }
-    }
+  public void autonomousPeriodic() {
+    DeliverMiddle();
+    ReverseAnd180();
+    ChargeStation();
   }
 
     /* 
@@ -213,6 +197,91 @@ public class Robot extends TimedRobot {
 
   //#endregion
   
+  //#region Autonomous methods
+
+  private void DeliverMiddle() {
+    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
+      motorArmController.set(1);
+    }
+    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
+      motorArmController.set(0);
+
+      if (stopSolenoid == false) {
+        doubleSolenoid.set(Value.kReverse);
+
+        esperaTimer.restart();
+        while (esperaTimer.get() < 0.5){
+          motorArmController.set(-0.1);
+        }
+
+        stopSolenoid = true;
+      }
+    }
+    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
+        motorArmController.set(-1);  
+    }
+    else{
+      motorArmController.stopMotor();
+      parte2 = true;
+    }
+  }
+
+  private void ReverseAnd180() {
+    if (parte2 == true){ 
+
+      if (motores.GetLeftEncoder().getPosition() > -7) {
+        mydrive.tankDrive(0.6, 0.6);
+      }
+
+      else {   
+        mydrive.stopMotor();
+
+        while (pigeon2.getYaw() < 160){
+          mydrive.tankDrive(0.5, -0.5);
+        }
+        mydrive.stopMotor();
+        parte2 = false;
+        parte3 = true;
+      }
+    }
+  }
+
+  private void ChargeStation(){
+    if (parte3 == true) {
+
+      if (angleRobotRounded > 4) {
+        climb = true;
+      }
+
+      if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+        stop = true;
+      }
+      
+      if (climb == false) {
+        mydrive.tankDrive(-0.4, -0.4);
+      }
+      else if (angleRobotRounded < 10 && stop == false) {
+        mydrive.tankDrive(-0.4, -0.4);
+      }
+      else if (angleRobotRounded >= 10 && stop == false) {
+        mydrive.tankDrive(-0.35, -0.35);
+      }
+      else if (stop == true) {
+        if (angleRobotRounded > 4.3) {  // 4
+          mydrive.tankDrive(-0.25, -0.25);
+        }
+        else if (angleRobotRounded < -4.3){ // -4
+          mydrive.tankDrive(0.3, 0.3);  // 0.25
+        }
+        else {
+          mydrive.tankDrive(0, 0);
+        }
+      }
+    }
+  }
+
+  //#endregion
+
   //#region Parte Teleoperada
 
   @Override
@@ -274,18 +343,10 @@ public class Robot extends TimedRobot {
   private void ControlBody() {
     ControlElevation();
     ExtendArm();
-    // ControlArm();
-    if(xboxControllerAttachments.getLeftY()> 0.1 && xboxControllerAttachments.getLeftY()< -0.1){
-        motorArmController.set(xboxControllerAttachments.getLeftY()*0.85);
-      }
-    else{
-        motorArmController.stopMotor();
-    }
-    // valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
-    ControlIntake();
+    ControlArm();
+    ControlIntake();  
   }
 
-  
   private void ControlElevation() {  
     // Apenas um poderá ser acionado por vez
     if ((xboxControllerAttachments.getLeftTriggerAxis() > 0 && xboxControllerAttachments.getRightTriggerAxis() == 0) || (xboxControllerAttachments.getLeftTriggerAxis() == 0 && xboxControllerAttachments.getRightTriggerAxis() > 0)) {
@@ -302,66 +363,59 @@ public class Robot extends TimedRobot {
   }
 
   private void ExtendArm() {
-    if (xboxControllerAttachments.getRightY() != 0) {
-      motorExtendArm.set(ControlMode.PercentOutput, xboxControllerAttachments.getRightY());
+    double valorMaximoEncoder = 110;  // 225
+    if (Math.abs(xboxControllerAttachments.getRightY()) > 0.1)
+    {
+      if (xboxControllerAttachments.getRightY() < 0 && valueEncoderMotorExtendArm < valorMaximoEncoder) { // Estende
+        motorExtendArm.set(xboxControllerAttachments.getRightY());
+      }
+      else if (xboxControllerAttachments.getRightY() > 0 && valueEncoderMotorExtendArm > 10) {  // Recolhe
+        motorExtendArm.set(xboxControllerAttachments.getRightY());
+      }
+      else {
+        motorExtendArm.set(0);
+        motorExtendArm.stopMotor();
+      }
     }
     else {
       motorExtendArm.stopMotor();
+      motorExtendArm.set(0);
     }
   }
   
 
-  private void ControlArm() {
-    valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
-    if(xboxControllerAttachments.getLeftY()>0){
-      if(valueEncoderMotorArmController>0){
-        motorArmController.set(xboxControllerAttachments.getLeftY()*0.85);
-      }
-      else{
-        motorArmController.stopMotor();
-      }
-    }
-    else if(xboxControllerAttachments.getLeftY()<0){
-      if(valueEncoderMotorArmController<153){
-        motorArmController.set(xboxControllerAttachments.getLeftY()*0.85);
-      }
-      else{
-        motorArmController.stopMotor();
-      }
+  private void ControlArm() { // -1 para cima → recolher                   1 para baixo → estender
+
+    if (Math.abs(xboxControllerAttachments.getLeftY()) > 0.1)
+    {
+      motorArmController.set(xboxControllerAttachments.getLeftY());
     }
     else{
-      motorArmController.stopMotor();
+      motorArmController.set(0);
     }
 
-    /*valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
-    if (xboxControllerAttachments.getLeftY() != 0 ) {
-      motorArmController.set(xboxControllerAttachments.getLeftY()*0.2);
+    /* 
+    double valorMaximoEncoder = 153;
+    if (Math.abs(xboxControllerAttachments.getLeftY()) > 0.1)
+    {
+      if (xboxControllerAttachments.getLeftY() < 0 && valueEncoderMotorArmController > 0) { // Estende
+        motorArmController.set(xboxControllerAttachments.getLeftY());
+      }
+      else if (xboxControllerAttachments.getLeftY() > 0 && valueEncoderMotorArmController < valorMaximoEncoder) {  // Recolhe
+        motorArmController.set(xboxControllerAttachments.getLeftY());
+      }
+      else {
+        motorArmController.set(0);
+        motorArmController.stopMotor();
+      }
     }
     else {
       motorArmController.stopMotor();
-    }*/
-
-    /* 
-    if(valueEncoderMotorArmController<=0){
-      if (xboxControllerAttachments.getLeftY() <= 0 ) {
-        motorArmController.set(xboxControllerAttachments.getLeftY());
-      }
-      else {
-        motorArmController.stopMotor();
-      }
+      motorArmController.set(0);
     }
-    else if(valueEncoderMotorArmController>0) {
-      if (xboxControllerAttachments.getLeftY() >= 0 ) {
-        motorArmController.set(xboxControllerAttachments.getLeftY());
-      }
-      else {
-        motorArmController.stopMotor();
-      }
-    }
-    else{
-      motorArmController.stopMotor();
-    }*/
+  */
   }
+
 
   private void ControlIntake() {
     if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
@@ -371,11 +425,10 @@ public class Robot extends TimedRobot {
       doubleSolenoid.set(Value.kForward);
     }
   }
-  
 
   //#endregion
 
-  //#region Metodos Off
+  //#region Methods Off
 
   /** This function is called once when the robot is disabled. */
   @Override
@@ -402,5 +455,4 @@ public class Robot extends TimedRobot {
   public void simulationPeriodic() {}
 
   //#endregion
-
 }
