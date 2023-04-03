@@ -72,7 +72,7 @@ public class Robot extends TimedRobot {
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
   private CANSparkMax motorArmController = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
-  private CANSparkMax motorExtendArm = new CANSparkMax(IDMOTOR6, MotorType.kBrushless);
+  private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
   private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
 
   // Encoder(s)
@@ -133,7 +133,6 @@ public class Robot extends TimedRobot {
 
     //Att encoders dos motores
     valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
-    valueEncoderMotorExtendArm = motorExtendArm.getEncoder().getPosition() * -1;
     
     // Att valores Piegon 2.0
     angleRobot = (pigeon2.getRoll() * -1) - 5;
@@ -362,25 +361,14 @@ public class Robot extends TimedRobot {
     }
   }
 
-  private void ExtendArm() {
-    double valorMaximoEncoder = 110;  // 225
-    if (Math.abs(xboxControllerAttachments.getRightY()) > 0.1)
-    {
-      if (xboxControllerAttachments.getRightY() < 0 && valueEncoderMotorExtendArm < valorMaximoEncoder) { // Estende
-        motorExtendArm.set(xboxControllerAttachments.getRightY());
-      }
-      else if (xboxControllerAttachments.getRightY() > 0 && valueEncoderMotorExtendArm > 10) {  // Recolhe
-        motorExtendArm.set(xboxControllerAttachments.getRightY());
-      }
-      else {
-        motorExtendArm.set(0);
-        motorExtendArm.stopMotor();
-      }
+  private void ExtendArm() {  // 225
+    if (xboxControllerAttachments.getRightY() != 0) { // Estende
+      motorExtendArm.set(xboxControllerAttachments.getRightY()*-1);
     }
     else {
       motorExtendArm.stopMotor();
       motorExtendArm.set(0);
-    }
+    }    
   }
   
 
