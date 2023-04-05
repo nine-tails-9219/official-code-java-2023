@@ -75,6 +75,7 @@ public class Robot extends TimedRobot {
     // tankCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
     UsbCamera camera = CameraServer.startAutomaticCapture();
     camera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
+    camera.setBrightness(30);
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
