@@ -61,7 +61,7 @@ public class Robot extends TimedRobot {
   private static final String kCustomAuto = "My Auto";
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
-  //#region Definindo variáveis de controles, motores, pneumática e câmera
+  //#region Definindo variáveis de controles, motores, encoders, pneumática, câmera, etc.
 
   // Controles
   private XboxController xboxControllerTank = new XboxController(0);
@@ -89,7 +89,6 @@ public class Robot extends TimedRobot {
   private double angleRobot = 0;
   private double angleRobotRounded = 0;
 
-
   // Timer
   private final Timer esperaTimer = new Timer();
 
@@ -99,6 +98,9 @@ public class Robot extends TimedRobot {
   private boolean stopSolenoid = false;
   private boolean parte2 = false;
   private boolean parte3 = false;
+
+  // ID Autonomo
+  private int idAutonomo = 2;
 
   //#endregion
 
@@ -110,10 +112,6 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
-    // UsbCamera armCamera = CameraServer.startAutomaticCapture(0);
-    // UsbCamera tankCamera = CameraServer.startAutomaticCapture(1);
-    // armCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
-    // tankCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
     UsbCamera camera = CameraServer.startAutomaticCapture();
     camera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
     camera.setBrightness(30);
@@ -122,10 +120,9 @@ public class Robot extends TimedRobot {
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
     mydrive.setSafetyEnabled(false);
 
-    motorArmController.setInverted(true);
+    motorArmController.setInverted(true); // Inverte o sentido do motor do cabo de aço
 
     compressor.enableDigital();  // Ativa o compressor
-    doubleSolenoid.set(Value.kOff);
   }
 
   @Override
@@ -143,9 +140,9 @@ public class Robot extends TimedRobot {
 
     //#region SmartDashboard
 
-    // Encoder dos motores
-    SmartDashboard.putNumber("encoder left", motores.GetLeftEncoder().getPosition());
-    SmartDashboard.putNumber("encoder right", motores.GetRightEncoder().getPosition());
+    // Encoder dos motores 
+    SmartDashboard.putNumber("Encoder Left", motores.GetLeftEncoder().getPosition());
+    SmartDashboard.putNumber("Encoder Right", motores.GetRightEncoder().getPosition());
     SmartDashboard.putNumber("Encoder Arm", valueEncoderMotorArmController);
     SmartDashboard.putNumber("Extend Arm", valueEncoderMotorExtendArm);
 
@@ -173,6 +170,9 @@ public class Robot extends TimedRobot {
     
     climb = false;
     stop = false;
+    stopSolenoid = false;
+
+    doubleSolenoid.set(Value.kForward); // Fecha a solenoide por padrão
 
     motores.leftEncoder1.setPosition(0);
     motorArmController.getEncoder().setPosition(0);
@@ -180,26 +180,27 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousPeriodic() {
-    DeliverMiddle();
-    ReverseAnd180();
-    ChargeStation();
-  }
+    switch (idAutonomo) {
+      case 1:
+        DeliverMiddleAndExitCommunity();
+        break;
 
-    /* 
-    if (motores.GetLeftEncoder().getPosition() < 10.5 && motores.GetRightEncoder().getPosition() < 10.5) {
-      mydrive.tankDrive(-0.3, -0.3);
+      case 2: 
+        CubeInLowAndChargeStation();
+        break;
+
+      case 3: 
+        DeliverMiddleAndReverseAnd180AndChargeStation();
+        break;
+
     }
-    else {
-      mydrive.stopMotor();
-      mydrive.tankDrive(0, 0);
-    }
-    */
+  }
 
   //#endregion
   
   //#region Autonomous methods
 
-  private void DeliverMiddle() {
+  private void DeliverMiddleAndReverseAnd180AndChargeStation() {
     if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
       motorArmController.set(1);
     }
@@ -222,7 +223,127 @@ public class Robot extends TimedRobot {
     }
     else{
       motorArmController.stopMotor();
-      parte2 = true;
+
+      // ReverseAnd180
+      if (motores.GetLeftEncoder().getPosition() > -7) {
+        mydrive.tankDrive(0.6, 0.6);
+      }
+      else {   
+        mydrive.stopMotor();
+
+        while (pigeon2.getYaw() < 160){
+          mydrive.tankDrive(0.5, -0.5);
+        }
+
+        mydrive.stopMotor();
+      }
+
+      // ChargeStation
+      if (angleRobotRounded > 4) {
+        climb = true;
+      }
+  
+      if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+        stop = true;
+      }
+      
+      if (climb == false) {
+        mydrive.tankDrive(-0.5, -0.5);
+      }
+      else if (angleRobotRounded < 10 && stop == false) {
+        mydrive.tankDrive(-0.4, -0.4);
+      }
+      else if (angleRobotRounded >= 10 && stop == false) {
+        mydrive.tankDrive(-0.35, -0.35);
+      }
+      else if (stop == true) {
+        if (angleRobotRounded > 4) {  // 4
+          mydrive.tankDrive(-0.25, -0.25);
+        }
+        else if (angleRobotRounded < -4) { // -4
+          mydrive.tankDrive(0.3, 0.3);  // 0.25
+        }
+        else {
+          mydrive.tankDrive(0, 0);
+        }
+      }
+    }
+  }
+
+  private void CubeInLowAndChargeStation(){
+
+    
+    while (esperaTimer.get() < 1.5) {
+      mydrive.tankDrive(0.3, 0.3);
+    }
+
+    while (esperaTimer.get() < 1.7) {
+      mydrive.tankDrive(-0.6, -0.6);
+    }
+
+    if (angleRobotRounded > 4) {
+      climb = true;
+    }
+
+    if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+      stop = true;
+    }
+    
+    if (climb == false) {
+      mydrive.tankDrive(-0.5, -0.5);
+    }
+    else if (angleRobotRounded < 10 && stop == false) {
+      mydrive.tankDrive(-0.4, -0.4);
+    }
+    else if (angleRobotRounded >= 10 && stop == false) {
+      mydrive.tankDrive(-0.35, -0.35);
+    }
+    else if (stop == true) {
+      if (angleRobotRounded > 4) {  // 4
+        mydrive.tankDrive(-0.25, -0.25);
+      }
+      else if (angleRobotRounded < -4){ // -4
+        mydrive.tankDrive(0.3, 0.3);  // 0.25
+      }
+      else {
+        mydrive.tankDrive(0, 0);
+      }
+    }
+  }
+
+  private void DeliverMiddleAndExitCommunity(){
+    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
+      motorArmController.set(1);
+    }
+    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
+      motorArmController.set(0);
+
+      if (stopSolenoid == false) {
+        doubleSolenoid.set(Value.kReverse);
+
+        esperaTimer.restart();
+        while (esperaTimer.get() < 0.5){
+          motorArmController.set(-0.1);
+        }
+
+        stopSolenoid = true;
+      }
+    }
+    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
+        motorArmController.set(-1);  
+    }
+    else{
+      motorArmController.stopMotor();
+
+      // Exit Community
+      SmartDashboard.putNumber("AKSDKAFASKFA", motores.leftEncoder1.getPosition());
+
+      if (motores.leftEncoder1.getPosition() > -45.5) { //2M //Conta ((QtdEmCM / 47,1) * 10,71)
+        mydrive.tankDrive(0.5, 0.5);
+      }
+      else {
+        mydrive.stopMotor();
+      }
     }
   }
 
@@ -240,42 +361,6 @@ public class Robot extends TimedRobot {
           mydrive.tankDrive(0.5, -0.5);
         }
         mydrive.stopMotor();
-        parte2 = false;
-        parte3 = true;
-      }
-    }
-  }
-
-  private void ChargeStation(){
-    if (parte3 == true) {
-
-      if (angleRobotRounded > 4) {
-        climb = true;
-      }
-
-      if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
-        stop = true;
-      }
-      
-      if (climb == false) {
-        mydrive.tankDrive(-0.4, -0.4);
-      }
-      else if (angleRobotRounded < 10 && stop == false) {
-        mydrive.tankDrive(-0.4, -0.4);
-      }
-      else if (angleRobotRounded >= 10 && stop == false) {
-        mydrive.tankDrive(-0.35, -0.35);
-      }
-      else if (stop == true) {
-        if (angleRobotRounded > 4.3) {  // 4
-          mydrive.tankDrive(-0.25, -0.25);
-        }
-        else if (angleRobotRounded < -4.3){ // -4
-          mydrive.tankDrive(0.3, 0.3);  // 0.25
-        }
-        else {
-          mydrive.tankDrive(0, 0);
-        }
       }
     }
   }
