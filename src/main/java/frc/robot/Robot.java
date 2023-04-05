@@ -2,10 +2,17 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
-package frc.robot;
+//#region Bibliotecas
 
+package frc.robot;
+import java.util.Map;
+import java.util.concurrent.CancellationException;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+import com.ctre.phoenix.sensors.Pigeon2;
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.CANSparkMax.IdleMode;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.cscore.VideoMode.PixelFormat;
@@ -16,8 +23,14 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim.KitbotWheelSize;
+
+import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Timer;
+
+//#endregion
 
 /*
   ID Controles:
@@ -30,38 +43,66 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
     • 1 e 3: Direita
     • 2 e 4: Esquerda e Invertido
 
-  IDs de Intake:
-    • 5: Elevação Vertical
+  IDs de Body:
+    • 5: Angulação do braço (movimento angular)
     • 6: Estender Horizontal (movimento horizontal)
-    • 7: Angulação do braço (movimento angular)
+    • 7: Elevação Vertical
 
-  ID PneumaticHUB: 8
+  ID PneumaticHUB: 
+    • 8
 
+  ID Pigeon 2.0: 
+    • 9
 */
 
 public class Robot extends TimedRobot {
 
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
-  private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
   //#region Definindo variáveis de controles, motores, pneumática e câmera
 
+  // Controles
   private XboxController xboxControllerTank = new XboxController(0);
   private XboxController xboxControllerAttachments = new XboxController(1);
 
+  // Motores
   private DifferentialDrive mydrive;
   private Motor motores;
-  private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8;
-  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
+  private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
+  private CANSparkMax motorArmController = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
   private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
-  private WPI_VictorSPX motorArmController = new WPI_VictorSPX(IDMOTOR5);
+  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
+
+  // Encoder(s)
+  private double valueEncoderMotorArmController = 0;
+  private double valueEncoderMotorExtendArm = 0;
+
+  // Pneumática
 
   private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
   private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
 
+  // Pigeon 2.0
+  private Pigeon2 pigeon2 = new Pigeon2(IDPIGEON);
+  private double angleRobot = 0;
+  private double angleRobotRounded = 0;
+
+
+  // Timer
+  private final Timer esperaTimer = new Timer();
+
+  // Interruptores
+  private boolean climb = false;
+  private boolean stop = false;
+  private boolean stopSolenoid = false;
+  private boolean parte2 = false;
+  private boolean parte3 = false;
+
   //#endregion
+
+  //#region Robot
 
   @Override
   public void robotInit() {
@@ -79,52 +120,186 @@ public class Robot extends TimedRobot {
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
+    mydrive.setSafetyEnabled(false);
+
+    motorArmController.setInverted(true);
 
     compressor.enableDigital();  // Ativa o compressor
-
-    motorElevation.setInverted(true);
-
     doubleSolenoid.set(Value.kOff);
-
   }
 
   @Override
-  public void robotPeriodic() {}
+  public void robotPeriodic() {
+    //#region Updates
+
+    //Att encoders dos motores
+    valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
+    
+    // Att valores Piegon 2.0
+    angleRobot = (pigeon2.getRoll() * -1) - 5;
+    angleRobotRounded = (angleRobot * 100) / 100;
+
+    //#endregion
+
+    //#region SmartDashboard
+
+    // Encoder dos motores
+    SmartDashboard.putNumber("encoder left", motores.GetLeftEncoder().getPosition());
+    SmartDashboard.putNumber("encoder right", motores.GetRightEncoder().getPosition());
+    SmartDashboard.putNumber("Encoder Arm", valueEncoderMotorArmController);
+    SmartDashboard.putNumber("Extend Arm", valueEncoderMotorExtendArm);
+
+    // Variáveis usadas na ChargeStation() e ReverseAnd180()
+    SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
+    SmartDashboard.putNumber("Yaw (EixoX)", pigeon2.getYaw());
+    SmartDashboard.putNumber("Ângulo", angleRobotRounded);
+    SmartDashboard.putBoolean("Subiu", climb);
+    SmartDashboard.putBoolean("Parar", stop);
+
+    //#endregion
+  }
+
+  //#endregion
+
+  //#region Structure Autonomous
 
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
+    pigeon2.setYaw(0);
+    pigeon2.configFactoryDefault();
+
+    esperaTimer.restart();
+    mydrive.setMaxOutput(1.0);
+    
+    climb = false;
+    stop = false;
+
+    motores.leftEncoder1.setPosition(0);
+    motorArmController.getEncoder().setPosition(0);
   }
 
   @Override
   public void autonomousPeriodic() {
-    // Criar período autônomo
+    DeliverMiddle();
+    ReverseAnd180();
+    ChargeStation();
   }
+
+    /* 
+    if (motores.GetLeftEncoder().getPosition() < 10.5 && motores.GetRightEncoder().getPosition() < 10.5) {
+      mydrive.tankDrive(-0.3, -0.3);
+    }
+    else {
+      mydrive.stopMotor();
+      mydrive.tankDrive(0, 0);
+    }
+    */
+
+  //#endregion
+  
+  //#region Autonomous methods
+
+  private void DeliverMiddle() {
+    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
+      motorArmController.set(1);
+    }
+    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
+      motorArmController.set(0);
+
+      if (stopSolenoid == false) {
+        doubleSolenoid.set(Value.kReverse);
+
+        esperaTimer.restart();
+        while (esperaTimer.get() < 0.5){
+          motorArmController.set(-0.1);
+        }
+
+        stopSolenoid = true;
+      }
+    }
+    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
+        motorArmController.set(-1);  
+    }
+    else{
+      motorArmController.stopMotor();
+      parte2 = true;
+    }
+  }
+
+  private void ReverseAnd180() {
+    if (parte2 == true){ 
+
+      if (motores.GetLeftEncoder().getPosition() > -7) {
+        mydrive.tankDrive(0.6, 0.6);
+      }
+
+      else {   
+        mydrive.stopMotor();
+
+        while (pigeon2.getYaw() < 160){
+          mydrive.tankDrive(0.5, -0.5);
+        }
+        mydrive.stopMotor();
+        parte2 = false;
+        parte3 = true;
+      }
+    }
+  }
+
+  private void ChargeStation(){
+    if (parte3 == true) {
+
+      if (angleRobotRounded > 4) {
+        climb = true;
+      }
+
+      if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+        stop = true;
+      }
+      
+      if (climb == false) {
+        mydrive.tankDrive(-0.4, -0.4);
+      }
+      else if (angleRobotRounded < 10 && stop == false) {
+        mydrive.tankDrive(-0.4, -0.4);
+      }
+      else if (angleRobotRounded >= 10 && stop == false) {
+        mydrive.tankDrive(-0.35, -0.35);
+      }
+      else if (stop == true) {
+        if (angleRobotRounded > 4.3) {  // 4
+          mydrive.tankDrive(-0.25, -0.25);
+        }
+        else if (angleRobotRounded < -4.3){ // -4
+          mydrive.tankDrive(0.3, 0.3);  // 0.25
+        }
+        else {
+          mydrive.tankDrive(0, 0);
+        }
+      }
+    }
+  }
+
+  //#endregion
+
+  //#region Parte Teleoperada
 
   @Override
   public void teleopInit() {
     mydrive.setSafetyEnabled(false);
+    //motorArmController.getEncoder().setPosition(0);
   }
 
   @Override
   public void teleopPeriodic() {
     TankController(); // Controla a movimentação do robô
     ControlBody(); // Controla a elevação vertical, o movimento do braço  e o de coleta
-    ControlCompressor();// Controla o compressor
-    
+
+    // SmartDashboard.putNumber("LeftMotor:", motores.GetLeftEncoder().get());
+    // SmartDashboard.putNumber("RightMotor:", motores.GetRightEncoder().get());
   }
 
-  //#region Control Compressor
-  public void ControlCompressor(){
-    SmartDashboard.putBoolean("Compressor", compressor.getPressureSwitchValue());
-
-    if (xboxControllerAttachments.getAButton()){
-      compressor.enableDigital();
-    }
-  }
-  //#region
+  //#endregion
 
   //#region TankControlller
   
@@ -157,25 +332,29 @@ public class Robot extends TimedRobot {
     }
   }
 
-  //#endregion
+  private Double GetSensorPosition() {
+    return ((motores.GetLeftEncoder().getPosition() * 2 * Math.PI * 7.6) / motores.GetLeftEncoder().getCountsPerRevolution()) * 400;
+  }
 
+  //#endregion
+ 
   //#region ControlBody
 
   private void ControlBody() {
     ControlElevation();
     ExtendArm();
     ControlArm();
-    ControlIntake();
+    ControlIntake();  
   }
 
   private void ControlElevation() {  
     // Apenas um poderá ser acionado por vez
     if ((xboxControllerAttachments.getLeftTriggerAxis() > 0 && xboxControllerAttachments.getRightTriggerAxis() == 0) || (xboxControllerAttachments.getLeftTriggerAxis() == 0 && xboxControllerAttachments.getRightTriggerAxis() > 0)) {
       if (xboxControllerAttachments.getLeftTriggerAxis() > 0) { // Descer elevador
-        motorElevation.set(ControlMode.PercentOutput, xboxControllerAttachments.getLeftTriggerAxis() * -1);
+        motorElevation.set(xboxControllerAttachments.getLeftTriggerAxis());
       }
       else if (xboxControllerAttachments.getRightTriggerAxis() > 0) { // Subir elevador
-        motorElevation.set(ControlMode.PercentOutput, xboxControllerAttachments.getRightTriggerAxis());
+        motorElevation.set(xboxControllerAttachments.getRightTriggerAxis() * -1);
       }
     }
     else {
@@ -183,23 +362,49 @@ public class Robot extends TimedRobot {
     }
   }
 
-  private void ExtendArm() {
-    if (xboxControllerAttachments.getLeftY() != 0) {
-      motorExtendArm.set(ControlMode.PercentOutput, xboxControllerAttachments.getLeftY());
+  private void ExtendArm() {  // 225
+    if (xboxControllerAttachments.getRightY() != 0) { // Estende
+      motorExtendArm.set(xboxControllerAttachments.getRightY()*-1);
     }
     else {
       motorExtendArm.stopMotor();
-    }
+      motorExtendArm.set(0);
+    }    
   }
+  
 
-  private void ControlArm() {
-    if (xboxControllerAttachments.getRightY() != 0) {
-      motorArmController.set(ControlMode.PercentOutput, xboxControllerAttachments.getRightY());
+  private void ControlArm() { // -1 para cima → recolher                   1 para baixo → estender
+
+    if (Math.abs(xboxControllerAttachments.getLeftY()) > 0.1)
+    {
+      motorArmController.set(xboxControllerAttachments.getLeftY());
+    }
+    else{
+      motorArmController.set(0);
+    }
+
+    /* 
+    double valorMaximoEncoder = 153;
+    if (Math.abs(xboxControllerAttachments.getLeftY()) > 0.1)
+    {
+      if (xboxControllerAttachments.getLeftY() < 0 && valueEncoderMotorArmController > 0) { // Estende
+        motorArmController.set(xboxControllerAttachments.getLeftY());
+      }
+      else if (xboxControllerAttachments.getLeftY() > 0 && valueEncoderMotorArmController < valorMaximoEncoder) {  // Recolhe
+        motorArmController.set(xboxControllerAttachments.getLeftY());
+      }
+      else {
+        motorArmController.set(0);
+        motorArmController.stopMotor();
+      }
     }
     else {
       motorArmController.stopMotor();
+      motorArmController.set(0);
     }
+  */
   }
+
 
   private void ControlIntake() {
     if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
@@ -211,6 +416,8 @@ public class Robot extends TimedRobot {
   }
 
   //#endregion
+
+  //#region Methods Off
 
   /** This function is called once when the robot is disabled. */
   @Override
@@ -235,4 +442,6 @@ public class Robot extends TimedRobot {
   /** This function is called periodically whilst in simulation. */
   @Override
   public void simulationPeriodic() {}
+
+  //#endregion
 }
