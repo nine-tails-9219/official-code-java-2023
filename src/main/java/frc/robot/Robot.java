@@ -96,11 +96,10 @@ public class Robot extends TimedRobot {
   private boolean climb = false;
   private boolean stop = false;
   private boolean stopSolenoid = false;
-  private boolean parte2 = false;
-  private boolean parte3 = false;
+  private boolean conditionIdAutonomo3 = false;
 
   // ID Autonomo
-  private int idAutonomo = 2;
+  private int idAutonomo = 0;
 
   //#endregion
 
@@ -171,28 +170,34 @@ public class Robot extends TimedRobot {
     climb = false;
     stop = false;
     stopSolenoid = false;
+    conditionIdAutonomo3 = false;
 
     doubleSolenoid.set(Value.kForward); // Fecha a solenoide por padrão
 
     motores.leftEncoder1.setPosition(0);
     motorArmController.getEncoder().setPosition(0);
+
+    /*==================================
+    *   MUDE O PERÍODO AUTÔNOMO AQUI   *
+    *    !!!!!!!!!!!!!!!!!!!!!!!!!     *
+    ===================================*/
+    idAutonomo = 1;
   }
 
   @Override
   public void autonomousPeriodic() {
     switch (idAutonomo) {
       case 1:
-        DeliverMiddleAndExitCommunity();
+        DeliverMiddleAndExitCommunity(); // Entrega no mid e sai da comunidade
         break;
 
       case 2: 
-        CubeInLowAndChargeStation();
+        CubeInLowAndChargeStation(); // Entrega o cubo no low e sobre na charge station
         break;
 
       case 3: 
-        DeliverMiddleAndReverseAnd180AndChargeStation();
+        DeliverMiddleAndReverseAnd180AndChargeStation();// Entrega no mid, chega para trás, vira 180° e sobe na charge station
         break;
-
     }
   }
 
@@ -200,7 +205,8 @@ public class Robot extends TimedRobot {
   
   //#region Autonomous methods
 
-  private void DeliverMiddleAndReverseAnd180AndChargeStation() {
+  private void DeliverMiddleAndExitCommunity(){
+    
     if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
       motorArmController.set(1);
     }
@@ -224,55 +230,18 @@ public class Robot extends TimedRobot {
     else{
       motorArmController.stopMotor();
 
-      // ReverseAnd180
-      if (motores.GetLeftEncoder().getPosition() > -7) {
-        mydrive.tankDrive(0.6, 0.6);
+      // Exit Community
+      if (motores.leftEncoder1.getPosition() > -79.5) { //3,5M //Conta = ((QtdEmCmQueDeseja / 47,1) * -10,71)
+        mydrive.tankDrive(0.5, 0.5);
       }
-      else {   
+      else {
         mydrive.stopMotor();
-
-        while (pigeon2.getYaw() < 160){
-          mydrive.tankDrive(0.5, -0.5);
-        }
-
-        mydrive.stopMotor();
-      }
-
-      // ChargeStation
-      if (angleRobotRounded > 4) {
-        climb = true;
-      }
-  
-      if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
-        stop = true;
-      }
-      
-      if (climb == false) {
-        mydrive.tankDrive(-0.5, -0.5);
-      }
-      else if (angleRobotRounded < 10 && stop == false) {
-        mydrive.tankDrive(-0.4, -0.4);
-      }
-      else if (angleRobotRounded >= 10 && stop == false) {
-        mydrive.tankDrive(-0.35, -0.35);
-      }
-      else if (stop == true) {
-        if (angleRobotRounded > 4) {  // 4
-          mydrive.tankDrive(-0.25, -0.25);
-        }
-        else if (angleRobotRounded < -4) { // -4
-          mydrive.tankDrive(0.3, 0.3);  // 0.25
-        }
-        else {
-          mydrive.tankDrive(0, 0);
-        }
       }
     }
   }
 
   private void CubeInLowAndChargeStation(){
 
-    
     while (esperaTimer.get() < 1.5) {
       mydrive.tankDrive(0.3, 0.3);
     }
@@ -311,7 +280,8 @@ public class Robot extends TimedRobot {
     }
   }
 
-  private void DeliverMiddleAndExitCommunity(){
+  private void DeliverMiddleAndReverseAnd180AndChargeStation() {
+
     if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
       motorArmController.set(1);
     }
@@ -335,53 +305,65 @@ public class Robot extends TimedRobot {
     else{
       motorArmController.stopMotor();
 
-      // Exit Community
-      SmartDashboard.putNumber("AKSDKAFASKFA", motores.leftEncoder1.getPosition());
-
-      if (motores.leftEncoder1.getPosition() > -45.5) { //2M //Conta ((QtdEmCM / 47,1) * 10,71)
-        mydrive.tankDrive(0.5, 0.5);
-      }
-      else {
-        mydrive.stopMotor();
-      }
-    }
-  }
-
-  private void ReverseAnd180() {
-    if (parte2 == true){ 
-
-      if (motores.GetLeftEncoder().getPosition() > -7) {
-        mydrive.tankDrive(0.6, 0.6);
-      }
-
-      else {   
-        mydrive.stopMotor();
+      if (conditionIdAutonomo3 == false){
+        // ReverseAnd180
+        while (motores.GetLeftEncoder().getPosition() > -7) {
+          mydrive.tankDrive(0.5, 0.5);
+        }
 
         while (pigeon2.getYaw() < 160){
           mydrive.tankDrive(0.5, -0.5);
         }
-        mydrive.stopMotor();
-      }
-    }
-  }
 
+        conditionIdAutonomo3 = true;
+      }
+      else{
+        // ChargeStation
+        if (angleRobotRounded > 4) {
+          climb = true;
+        }
+
+        if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+          stop = true;
+        }
+        
+        if (climb == false) {
+          mydrive.tankDrive(-0.5, -0.5);
+        }
+        else if (angleRobotRounded < 10 && stop == false) {
+          mydrive.tankDrive(-0.4, -0.4);
+        }
+        else if (angleRobotRounded >= 10 && stop == false) {
+          mydrive.tankDrive(-0.35, -0.35);
+        }
+        else if (stop == true) {
+          if (angleRobotRounded > 4) {  // 4
+            mydrive.tankDrive(-0.25, -0.25);
+          }
+          else if (angleRobotRounded < -4){ // -4
+            mydrive.tankDrive(0.3, 0.3);  // 0.25
+          }
+          else {
+            mydrive.tankDrive(0, 0);
+          }
+        }
+      }
+    }  
+  }
+  
   //#endregion
 
-  //#region Parte Teleoperada
+  //#region Structure Teleop
 
   @Override
   public void teleopInit() {
     mydrive.setSafetyEnabled(false);
-    //motorArmController.getEncoder().setPosition(0);
   }
 
   @Override
   public void teleopPeriodic() {
     TankController(); // Controla a movimentação do robô
     ControlBody(); // Controla a elevação vertical, o movimento do braço  e o de coleta
-
-    // SmartDashboard.putNumber("LeftMotor:", motores.GetLeftEncoder().get());
-    // SmartDashboard.putNumber("RightMotor:", motores.GetRightEncoder().get());
   }
 
   //#endregion
