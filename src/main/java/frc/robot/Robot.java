@@ -3,21 +3,27 @@
 // the WPILib BSD license file in the root directory of this project.
 
 package frc.robot;
-
-import com.ctre.phoenix.motorcontrol.ControlMode;
-import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.cscore.UsbCamera;
-import edu.wpi.first.cscore.VideoMode.PixelFormat;
-import edu.wpi.first.wpilibj.Compressor;
-import edu.wpi.first.wpilibj.DoubleSolenoid;
-import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.simulation.XboxControllerSim;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
+import java.lang.reflect.Array;
+
+import com.ctre.phoenix.sensors.Pigeon2;
+
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
+
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 /*
   ID Controles:
@@ -43,23 +49,51 @@ public class Robot extends TimedRobot {
 
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
+
+  private static final String kDefaultTeam = "Default Team";
+  private static final String kCustomRedAlliance = "Red Alliance";
+  private static final String kCustomBlueAlliance = "Blue Alliance";
+
+  private static final String kDefaultPosition = "Default Position";
+  private static final String kCustomPosition1 = "Position 1";
+  private static final String kCustomPosition2 = "Position 2";
+  private static final String kCustomPosition3 = "Position 3";
+
   private String m_autoSelected;
+  private String color_team;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
+  private final SendableChooser<String> m_team_color = new SendableChooser<>();
+  private final SendableChooser<String> m_team_position = new SendableChooser<>();
+  // private final SendableChooser<String> m_pipeline = new SendableChooser<>();
+
 
   //#region Definindo variáveis de controles, motores, pneumática e câmera
 
   private XboxController xboxControllerTank = new XboxController(0);
-  private XboxController xboxControllerAttachments = new XboxController(1);
+  private XboxController xboxControllerArm = new XboxController(1);
+
 
   private DifferentialDrive mydrive;
   private Motor motores;
-  private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8;
-  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
-  private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
-  private WPI_VictorSPX motorArmController = new WPI_VictorSPX(IDMOTOR5);
+  private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4;
 
-  private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
-  private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
+
+  NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
+  NetworkTableEntry tx = table.getEntry("tx");
+  NetworkTableEntry ty = table.getEntry("ty");
+  NetworkTableEntry ta = table.getEntry("ta");
+  NetworkTableEntry tid = table.getEntry("tid");
+
+  // Pigeon2 pigeon = new Pigeon2(9);
+
+
+  // private final int IDMOTOR5 = 5;
+  // public CANSparkMax motorTeste;
+
+  PIDController pidChargeStation  = new PIDController(0.048, 0, 0);
+  PIDController pidFollow  = new PIDController(0.2, 0, 0);
+  PIDController pidTurn  = new PIDController(0.02, 0, 0.0); //0.065, 0.0023, 0.01
+  PIDController pidLimelight = new PIDController(IDMOTOR2, IDMOTOR1, kDefaultPeriod);
 
   //#endregion
 
@@ -69,26 +103,67 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
-    // UsbCamera armCamera = CameraServer.startAutomaticCapture(0);
-    // UsbCamera tankCamera = CameraServer.startAutomaticCapture(1);
-    // armCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
-    // tankCamera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
-    UsbCamera camera = CameraServer.startAutomaticCapture();
-    camera.setVideoMode(PixelFormat.kMJPEG, 480, 320, 30);
+    m_team_color.setDefaultOption("Default Color", kDefaultTeam);
+    m_team_color.addOption("Red Alliance", kCustomRedAlliance);
+    m_team_color.addOption("Blue Alliance", kCustomBlueAlliance);
+    SmartDashboard.putData("Team Color", m_team_color);
+
+    m_team_position.setDefaultOption("Default Position", kDefaultPosition);
+    m_team_position.addOption("Position 1", kCustomPosition1);
+    m_team_position.addOption("Position 2", kCustomPosition2);
+    m_team_position.addOption("Position 3", kCustomPosition3);
+    SmartDashboard.putData("Team Position", m_team_position);
+
+    // m_pipeline.setDefaultOption("Pipeline 0", "0");
+    // m_pipeline.addOption("Pipeline 1", "1");
+    // m_pipeline.addOption("Pipeline 2", "2");
+    // m_pipeline.addOption("Pipeline 3", "3");
+    // m_pipeline.addOption("Pipeline 4", "4");
+    // SmartDashboard.putData("Pipeline", m_pipeline);
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
 
-    compressor.enableDigital();  // Ativa o compressor
+    // motorTeste = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
 
-    motorElevation.setInverted(true);
+    //#region Resetar PID
 
-    doubleSolenoid.set(Value.kOff);
+    pidChargeStation.reset();
+    pidFollow.reset();
+    pidTurn.reset();
 
+    //#endregion
   }
 
   @Override
-  public void robotPeriodic() {}
+  public void robotPeriodic() {
+    //#region Pigeon
+
+    /* SmartDashboard.putNumber("Pigeon (Yaw)", pigeon.getYaw());
+    SmartDashboard.putNumber("Pigeon (Pitch)", pigeon.getPitch());
+    SmartDashboard.putNumber("Pigeon (Roll)", pigeon.getRoll()*-1);
+    */
+
+    //#endregion
+    //#region Limelight
+
+    SmartDashboard.putNumber("LL3 (tx)", tx.getDouble(0));
+    SmartDashboard.putNumber("LL3 (ty)", ty.getDouble(0));
+    SmartDashboard.putNumber("LL3 (ta)", ta.getDouble(0));
+    SmartDashboard.putNumber("LL3 (ID)", tid.getDouble(0));
+
+    //#endregion
+    // table.getEntry("pipeline").setNumber(Integer.parseInt(m_pipeline.getSelected()));
+    //ResetYaw();
+  }
+ 
+  /* 
+  private void ResetYaw() {
+    if (Math.abs(pigeon.getYaw()) >= 360 || xboxControllerTank.getRightBumper()) {
+      pigeon.setYaw(0);
+    }
+  }
+  */
 
   @Override
   public void autonomousInit() {
@@ -100,33 +175,126 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     // Criar período autônomo
+    mydrive.stopMotor();
   }
 
   @Override
   public void teleopInit() {
     mydrive.setSafetyEnabled(false);
+    // pigeon.setYaw(0);
+    // pigeon.configFactoryDefault();
   }
 
   @Override
   public void teleopPeriodic() {
     TankController(); // Controla a movimentação do robô
-    ControlBody(); // Controla a elevação vertical, o movimento do braço  e o de coleta
-    ControlCompressor();// Controla o compressor
-    
+    // LimelightController(); // xButton || yButton
+    // ChargeStation();  // leftBumper
+    // Turn(90); // Virar || leftStickButton
+    // FollowAngle(0.5, 0); // seguir de acordo com o angulo || bButton
+
+
+
   }
 
-  //#region Control Compressor
-  public void ControlCompressor(){
-    SmartDashboard.putBoolean("Compressor", compressor.getPressureSwitchValue());
+  private void Teste() {
+    // motorTeste.set(xboxControllerTank.getLeftY()*0.5);
+  }
 
-    if (xboxControllerAttachments.getAButton()){
-      compressor.enableDigital();
+  //#region PID e Teste autônomo
+  private void ChargeStation() {
+    if (xboxControllerTank.getLeftBumper()){
+      // mydrive.setMaxOutput(0.8);
+      //double speed = pidChargeStation.calculate(pigeon.getRoll(), -3);
+      // mydrive.arcadeDrive(-speed, 0);
+
+  /* PID antigo
+      final double kP = 0.048;
+      final double setPoint = -5;  // Posição do X desejada
+  
+      double angle = pigeon.getRoll();
+  
+      double error = setPoint - angle;
+      double speed = kP * error;
+  
+      mydrive.setMaxOutput(0.8);
+      mydrive.arcadeDrive(-speed, 0); */
     }
   }
-  //#region
+
+  /* 
+  private void Turn(double angle) {
+    if (xboxControllerTank.getLeftStickButton()) {
+      double direction = pidTurn.calculate(pigeon.getYaw(), angle);
+
+      mydrive.setMaxOutput(0.4);
+      mydrive.arcadeDrive(0, -direction);
+    }
+  }
+
+  */
+  /* 
+  private void PIDVirar (double angulo) {
+    if (xboxControllerTank.getLeftStickButton()) {
+      final double kP = 0.065; // 0.03  0.055
+      final double kI = 0.0023; //0.002
+      final double kD = 0.01; // 0.01
+
+      final double iLimit = 1;
+
+      final double setPoint = angulo;  // Posição do X desejada
+  
+      double angle = pigeon.getYaw();
+  
+      double error = setPoint - angle;
+      double dt = Timer.getFPGATimestamp() - lastTimeStamp;
+
+      if (Math.abs(error) < iLimit) {
+        errorSum += error + dt;
+      }
+
+      double errorRate = (error - lastError) / dt;
+
+      double outputDirection = kP * error + kI * errorSum + kD * errorRate;
+  
+      mydrive.setMaxOutput(0.4);
+      mydrive.arcadeDrive(0, -outputDirection);
+
+      lastTimeStamp = Timer.getFPGATimestamp();
+      lastError = error;
+    }
+  }
+  */
+
+  /* 
+  private void FollowAngle(double speed, double angle) {
+    if (xboxControllerTank.getBButton()){
+      double direction = pidFollow.calculate(pigeon.getYaw(), angle);
+      mydrive.setMaxOutput(0.3);
+      mydrive.arcadeDrive(-speed, -direction);
+    }
+  }
+  */
+
+  /*private void PIDLine() {
+    if (xboxControllerTank.getBButton()){
+      final double kP = 0.3;
+      final double setPoint = 0;  // Posição do X desejada
+  
+      double angle = pigeon.getYaw();
+  
+      double error = setPoint - angle;
+      double outputDirection = kP * error;
+  
+      mydrive.setMaxOutput(0.3);
+      mydrive.arcadeDrive(xboxControllerTank.getLeftY(), -outputDirection);
+    }
+  }
+  */
+  //#endregion
+
 
   //#region TankControlller
-  
   private void TankController() {
     SetVelocityMode();
     MovimentationTank();
@@ -137,7 +305,7 @@ public class Robot extends TimedRobot {
       mydrive.stopMotor();
     }
     else if (Math.abs(xboxControllerTank.getLeftY()) >= 0.05 || Math.abs(xboxControllerTank.getLeftX()) >= 0.05) {  // Movendo Joystick
-      mydrive.arcadeDrive(xboxControllerTank.getLeftY(), xboxControllerTank.getLeftX()*1.2);
+      mydrive.arcadeDrive(xboxControllerTank.getLeftY(), xboxControllerTank.getLeftX());
     }
     else {
       mydrive.stopMotor();
@@ -149,67 +317,57 @@ public class Robot extends TimedRobot {
       mydrive.setMaxOutput(0.3);
     }
     else if (xboxControllerTank.getRightTriggerAxis() > 0) {
-      mydrive.setMaxOutput(1);
+      mydrive.setMaxOutput(xboxControllerTank.getRightTriggerAxis()+ 0.5);
     }
     else {
-      mydrive.setMaxOutput(0.5);
+      mydrive.setMaxOutput(0.5);  // 0.5
     }
   }
 
-  //#endregion
+  private void LimelightController() {
+    pidLimelight.setPID(0.06, 0, 0);
+    double speed = pidLimelight.calculate(ta.getDouble(0), 11);
 
-  //#region ControlBody
+    pidLimelight.setPID(0.035, 0, 0);
+    double direction = pidLimelight.calculate(tx.getDouble(0), 0);
 
-  private void ControlBody() {
-    ControlElevation();
-    ExtendArm();
-    ControlArm();
-    ControlIntake();
-  }
+    if (xboxControllerTank.getYButton()) {
+      table.getEntry("pipeline").setNumber(1); //7
 
-  private void ControlElevation() {  
-    // Apenas um poderá ser acionado por vez
-    if ((xboxControllerAttachments.getLeftTriggerAxis() > 0 && xboxControllerAttachments.getRightTriggerAxis() == 0) || (xboxControllerAttachments.getLeftTriggerAxis() == 0 && xboxControllerAttachments.getRightTriggerAxis() > 0)) {
-      if (xboxControllerAttachments.getLeftTriggerAxis() > 0) { // Descer elevador
-        motorElevation.set(ControlMode.PercentOutput, xboxControllerAttachments.getLeftTriggerAxis() * -1);
-      }
-      else if (xboxControllerAttachments.getRightTriggerAxis() > 0) { // Subir elevador
-        motorElevation.set(ControlMode.PercentOutput, xboxControllerAttachments.getRightTriggerAxis());
-      }
+      mydrive.setMaxOutput(0.6);
+      mydrive.arcadeDrive(-speed, -direction);
     }
-    else {
-      motorElevation.stopMotor();
+    else if (xboxControllerTank.getXButton()) {
+      table.getEntry("pipeline").setNumber(0);
+      
+      mydrive.setMaxOutput(0.6);
+      mydrive.arcadeDrive(-speed, -direction);
     }
   }
 
-  private void ExtendArm() {
-    if (xboxControllerAttachments.getLeftY() != 0) {
-      motorExtendArm.set(ControlMode.PercentOutput, xboxControllerAttachments.getLeftY());
-    }
-    else {
-      motorExtendArm.stopMotor();
-    }
+  private double GetDirection() {
+    final double kP = 0.035;
+    final double setPoint = 0;  // Posição do X desejada
+
+    double XPosition = tx.getDouble(0.0);
+
+    double error = setPoint - XPosition;
+    double outputSpeed = kP * error;
+
+    return outputSpeed;
   }
 
-  private void ControlArm() {
-    if (xboxControllerAttachments.getRightY() != 0) {
-      motorArmController.set(ControlMode.PercentOutput, xboxControllerAttachments.getRightY());
-    }
-    else {
-      motorArmController.stopMotor();
-    }
-  }
+  private double GetSpeed() {
+    final double kP = 0.06;    //0.28
+    final double setPoint = 11;  // Posição da area desejada    1.8
 
-  private void ControlIntake() {
-    if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
-      doubleSolenoid.set(Value.kReverse);
-    }
-    else if (xboxControllerAttachments.getRightBumper()) {  // Fecahr
-      doubleSolenoid.set(Value.kForward);
-    }
-  }
+    double area = ta.getDouble(0.0);
 
-  //#endregion
+    double error = setPoint - area;
+    double outputSpeed = kP * error;
+
+    return outputSpeed;
+  }
 
   /** This function is called once when the robot is disabled. */
   @Override
