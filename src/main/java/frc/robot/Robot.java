@@ -10,6 +10,9 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.simulation.XboxControllerSim;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Timer;
+
+//#endregion
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -36,13 +39,16 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
     • 1 e 3: Direita
     • 2 e 4: Esquerda e Invertido
 
-  IDs de Intake:
-    • 5: Elevação Vertical
+  IDs de Body:
+    • 5: Angulação do braço (movimento angular)
     • 6: Estender Horizontal (movimento horizontal)
-    • 7: Angulação do braço (movimento angular)
+    • 7: Elevação Vertical
 
-  ID PneumaticHUB: 8
+  ID PneumaticHUB: 
+    • 8
 
+  ID Pigeon 2.0: 
+    • 9
 */
 
 public class Robot extends TimedRobot {
@@ -67,12 +73,14 @@ public class Robot extends TimedRobot {
   // private final SendableChooser<String> m_pipeline = new SendableChooser<>();
 
 
-  //#region Definindo variáveis de controles, motores, pneumática e câmera
+  //#region Definindo variáveis de controles, motores, encoders, pneumática, câmera, etc.
 
+  // Controles
   private XboxController xboxControllerTank = new XboxController(0);
   private XboxController xboxControllerArm = new XboxController(1);
 
 
+  // Motores
   private DifferentialDrive mydrive;
   private Motor motores;
   private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4;
@@ -95,7 +103,26 @@ public class Robot extends TimedRobot {
   PIDController pidTurn  = new PIDController(0.02, 0, 0.0); //0.065, 0.0023, 0.01
   PIDController pidLimelight = new PIDController(IDMOTOR2, IDMOTOR1, kDefaultPeriod);
 
+  // Pigeon 2.0
+  private Pigeon2 pigeon2 = new Pigeon2(IDPIGEON);
+  private double angleRobot = 0;
+  private double angleRobotRounded = 0;
+
+  // Timer
+  private final Timer esperaTimer = new Timer();
+
+  // Interruptores
+  private boolean climb = false;
+  private boolean stop = false;
+  private boolean stopSolenoid = false;
+  private boolean conditionIdAutonomo3 = false;
+
+  // ID Autonomo
+  private int idAutonomo = 0;
+
   //#endregion
+
+  //#region Robot
 
   @Override
   public void robotInit() {
@@ -123,6 +150,9 @@ public class Robot extends TimedRobot {
 
     motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
     mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
+    mydrive.setSafetyEnabled(false);
+
+    motorArmController.setInverted(true); // Inverte o sentido do motor do cabo de aço
 
     // motorTeste = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
 
@@ -167,9 +197,27 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
+    pigeon2.setYaw(0);
+    pigeon2.configFactoryDefault();
+
+    esperaTimer.restart();
+    mydrive.setMaxOutput(1.0);
+    
+    climb = false;
+    stop = false;
+    stopSolenoid = false;
+    conditionIdAutonomo3 = false;
+
+    doubleSolenoid.set(Value.kForward); // Fecha a solenoide por padrão
+
+    motores.leftEncoder1.setPosition(0);
+    motorArmController.getEncoder().setPosition(0);
+
+    /*==================================
+    *   MUDE O PERÍODO AUTÔNOMO AQUI   *
+    *    !!!!!!!!!!!!!!!!!!!!!!!!!     *
+    ===================================*/
+    idAutonomo = 1;
   }
 
   @Override
@@ -177,6 +225,160 @@ public class Robot extends TimedRobot {
     // Criar período autônomo
     mydrive.stopMotor();
   }
+
+  //#endregion
+  
+  //#region Autonomous methods
+
+  private void DeliverMiddleAndExitCommunity(){
+    
+    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
+      motorArmController.set(1);
+    }
+    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
+      motorArmController.set(0);
+
+      if (stopSolenoid == false) {
+        doubleSolenoid.set(Value.kReverse);
+
+        esperaTimer.restart();
+        while (esperaTimer.get() < 0.5){
+          motorArmController.set(-0.1);
+        }
+
+        stopSolenoid = true;
+      }
+    }
+    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
+        motorArmController.set(-1);  
+    }
+    else{
+      motorArmController.stopMotor();
+
+      // Exit Community
+      if (motores.leftEncoder1.getPosition() > -79.5) { //3,5M //Conta = ((QtdEmCmQueDeseja / 47,1) * -10,71)
+        mydrive.tankDrive(0.5, 0.5);
+      }
+      else {
+        mydrive.stopMotor();
+      }
+    }
+  }
+
+  private void CubeInLowAndChargeStation(){
+
+    while (esperaTimer.get() < 1.5) {
+      mydrive.tankDrive(0.3, 0.3);
+    }
+
+    while (esperaTimer.get() < 1.7) {
+      mydrive.tankDrive(-0.6, -0.6);
+    }
+
+    if (angleRobotRounded > 4) {
+      climb = true;
+    }
+
+    if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+      stop = true;
+    }
+    
+    if (climb == false) {
+      mydrive.tankDrive(-0.5, -0.5);
+    }
+    else if (angleRobotRounded < 10 && stop == false) {
+      mydrive.tankDrive(-0.4, -0.4);
+    }
+    else if (angleRobotRounded >= 10 && stop == false) {
+      mydrive.tankDrive(-0.35, -0.35);
+    }
+    else if (stop == true) {
+      if (angleRobotRounded > 4) {  // 4
+        mydrive.tankDrive(-0.25, -0.25);
+      }
+      else if (angleRobotRounded < -4){ // -4
+        mydrive.tankDrive(0.3, 0.3);  // 0.25
+      }
+      else {
+        mydrive.tankDrive(0, 0);
+      }
+    }
+  }
+
+  private void DeliverMiddleAndReverseAnd180AndChargeStation() {
+
+    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
+      motorArmController.set(1);
+    }
+    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
+      motorArmController.set(0);
+
+      if (stopSolenoid == false) {
+        doubleSolenoid.set(Value.kReverse);
+
+        esperaTimer.restart();
+        while (esperaTimer.get() < 0.5){
+          motorArmController.set(-0.1);
+        }
+
+        stopSolenoid = true;
+      }
+    }
+    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
+        motorArmController.set(-1);  
+    }
+    else{
+      motorArmController.stopMotor();
+
+      if (conditionIdAutonomo3 == false){
+        // ReverseAnd180
+        while (motores.GetLeftEncoder().getPosition() > -7) {
+          mydrive.tankDrive(0.5, 0.5);
+        }
+
+        while (pigeon2.getYaw() < 160){
+          mydrive.tankDrive(0.5, -0.5);
+        }
+
+        conditionIdAutonomo3 = true;
+      }
+      else{
+        // ChargeStation
+        if (angleRobotRounded > 4) {
+          climb = true;
+        }
+
+        if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
+          stop = true;
+        }
+        
+        if (climb == false) {
+          mydrive.tankDrive(-0.5, -0.5);
+        }
+        else if (angleRobotRounded < 10 && stop == false) {
+          mydrive.tankDrive(-0.4, -0.4);
+        }
+        else if (angleRobotRounded >= 10 && stop == false) {
+          mydrive.tankDrive(-0.35, -0.35);
+        }
+        else if (stop == true) {
+          if (angleRobotRounded > 4) {  // 4
+            mydrive.tankDrive(-0.25, -0.25);
+          }
+          else if (angleRobotRounded < -4){ // -4
+            mydrive.tankDrive(0.3, 0.3);  // 0.25
+          }
+          else {
+            mydrive.tankDrive(0, 0);
+          }
+        }
+      }
+    }  
+  }
+  
+  //#endregion
+
+  //#region Structure Teleop
 
   @Override
   public void teleopInit() {
@@ -356,6 +558,7 @@ public class Robot extends TimedRobot {
 
     return outputSpeed;
   }
+  
 
   private double GetSpeed() {
     final double kP = 0.06;    //0.28
@@ -368,6 +571,8 @@ public class Robot extends TimedRobot {
 
     return outputSpeed;
   }
+
+  //#region Methods Off
 
   /** This function is called once when the robot is disabled. */
   @Override
@@ -392,4 +597,6 @@ public class Robot extends TimedRobot {
   /** This function is called periodically whilst in simulation. */
   @Override
   public void simulationPeriodic() {}
+
+  //#endregion
 }
