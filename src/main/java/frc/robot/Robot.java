@@ -68,9 +68,9 @@ public class Robot extends TimedRobot {
   private XboxController xboxControllerAttachments = new XboxController(1);
 
   // Motores
-  private DifferentialDrive mydrive;
-  private Motor motores;
-  private final int IDMOTOR1 = 1, IDMOTOR2 = 2, IDMOTOR3 = 3, IDMOTOR4 = 4, IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
+  
+  private MotoresSkate motoresSkate;
+  private final int IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
   private CANSparkMax motorArmController = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
   private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
   private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
@@ -111,10 +111,8 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
-    motores = new Motor(IDMOTOR2,IDMOTOR4,IDMOTOR1,IDMOTOR3); // Iniciar os motores
-    mydrive = new DifferentialDrive(motores.GetMotorLeft(), motores.GetMotorRight()); // Define o direcionador
-    mydrive.setSafetyEnabled(false); // Desativa o travamento do motor por segurança (Estava causando erro)
-
+    motoresSkate = new MotoresSkate(); // Iniciar os motores
+    
     motorArmController.setInverted(true); // Inverte o sentido do motor do cabo de aço
 
     compressor.enableDigital();  // Ativa o compressor
@@ -136,8 +134,8 @@ public class Robot extends TimedRobot {
     //#region SmartDashboard
 
     // Encoder dos motores 
-    SmartDashboard.putNumber("Encoder Left", motores.GetLeftEncoder().getPosition());
-    SmartDashboard.putNumber("Encoder Right", motores.GetRightEncoder().getPosition());
+    SmartDashboard.putNumber("Encoder Left", motoresSkate.GetLeftEncoder().getPosition());
+    SmartDashboard.putNumber("Encoder Right", motoresSkate.GetRightEncoder().getPosition());
     SmartDashboard.putNumber("Encoder Arm", valueEncoderMotorArmController);
     SmartDashboard.putNumber("Extend Arm", valueEncoderMotorExtendArm);
 
@@ -164,7 +162,7 @@ public class Robot extends TimedRobot {
 
     // Zera o timer
     esperaTimer.restart();
-    mydrive.setMaxOutput(1.0);
+    motoresSkate.SetMaxOutput(1.0);
     
 
     // Zera as variáveis usadas no autônomo
@@ -175,7 +173,7 @@ public class Robot extends TimedRobot {
 
     doubleSolenoid.set(Value.kForward); // Fecha a solenoide por padrão
 
-    motores.leftEncoder1.setPosition(0);
+    motoresSkate.SetPositionEncoderMotorLeft(0);
     motorArmController.getEncoder().setPosition(0);
 
     /*==================================
@@ -233,10 +231,10 @@ public class Robot extends TimedRobot {
 
       // Exit Community
       if (motores.leftEncoder1.getPosition() > -79.5) { //3,5M //Conta = ((QtdEmCmQueDeseja / 47,1) * -10,71)
-        mydrive.tankDrive(0.5, 0.5);
+        controladorMotores.tankDrive(0.5, 0.5);
       }
       else {
-        mydrive.stopMotor();
+        controladorMotores.stopMotor();
       }
     }
   }
@@ -244,11 +242,11 @@ public class Robot extends TimedRobot {
   private void CubeInLowAndChargeStation(){
 
     while (esperaTimer.get() < 1.5) {
-      mydrive.tankDrive(0.3, 0.3);
+      controladorMotores.tankDrive(0.3, 0.3);
     }
 
     while (esperaTimer.get() < 1.7) {
-      mydrive.tankDrive(-0.6, -0.6);
+      controladorMotores.tankDrive(-0.6, -0.6);
     }
 
     if (angleRobotRounded > 4) {
@@ -260,23 +258,23 @@ public class Robot extends TimedRobot {
     }
     
     if (climb == false) {
-      mydrive.tankDrive(-0.5, -0.5);
+      controladorMotores.tankDrive(-0.5, -0.5);
     }
     else if (angleRobotRounded < 10 && stop == false) {
-      mydrive.tankDrive(-0.4, -0.4);
+      controladorMotores.tankDrive(-0.4, -0.4);
     }
     else if (angleRobotRounded >= 10 && stop == false) {
-      mydrive.tankDrive(-0.35, -0.35);
+      controladorMotores.tankDrive(-0.35, -0.35);
     }
     else if (stop == true) {
       if (angleRobotRounded > 4) {  // 4
-        mydrive.tankDrive(-0.25, -0.25);
+        controladorMotores.tankDrive(-0.25, -0.25);
       }
       else if (angleRobotRounded < -4){ // -4
-        mydrive.tankDrive(0.3, 0.3);  // 0.25
+        controladorMotores.tankDrive(0.3, 0.3);  // 0.25
       }
       else {
-        mydrive.tankDrive(0, 0);
+        controladorMotores.tankDrive(0, 0);
       }
     }
   }
@@ -309,11 +307,11 @@ public class Robot extends TimedRobot {
       if (conditionIdAutonomo3 == false){
         // ReverseAnd180
         while (motores.GetLeftEncoder().getPosition() > -7) {
-          mydrive.tankDrive(0.5, 0.5);
+          controladorMotores.tankDrive(0.5, 0.5);
         }
 
         while (pigeon2.getYaw() < 160){
-          mydrive.tankDrive(0.5, -0.5);
+          controladorMotores.tankDrive(0.5, -0.5);
         }
 
         conditionIdAutonomo3 = true;
@@ -329,23 +327,23 @@ public class Robot extends TimedRobot {
         }
         
         if (climb == false) {
-          mydrive.tankDrive(-0.5, -0.5);
+          controladorMotores.tankDrive(-0.5, -0.5);
         }
         else if (angleRobotRounded < 10 && stop == false) {
-          mydrive.tankDrive(-0.4, -0.4);
+          controladorMotores.tankDrive(-0.4, -0.4);
         }
         else if (angleRobotRounded >= 10 && stop == false) {
-          mydrive.tankDrive(-0.35, -0.35);
+          controladorMotores.tankDrive(-0.35, -0.35);
         }
         else if (stop == true) {
           if (angleRobotRounded > 4) {  // 4
-            mydrive.tankDrive(-0.25, -0.25);
+            controladorMotores.tankDrive(-0.25, -0.25);
           }
           else if (angleRobotRounded < -4){ // -4
-            mydrive.tankDrive(0.3, 0.3);  // 0.25
+            controladorMotores.tankDrive(0.3, 0.3);  // 0.25
           }
           else {
-            mydrive.tankDrive(0, 0);
+            controladorMotores.tankDrive(0, 0);
           }
         }
       }
@@ -358,53 +356,20 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopInit() {
-    mydrive.setSafetyEnabled(false); // Desativa o travamento do motor por segurança (estava causando erro)
+    motoresSkate.SetSafetyEnabled(false);
   }
 
   @Override
   public void teleopPeriodic() {
-    TankController(); // Controla a movimentação do robô
+    motoresSkate.TankController(// Controla a movimentação do robô
+      xboxControllerTank.getAButton(),
+      xboxControllerTank.getLeftY(), 
+      xboxControllerTank.getLeftX(), 
+      xboxControllerTank.getLeftTriggerAxis(), 
+      xboxControllerTank.getRightTriggerAxis()
+      );
+      
     ControlBody(); // Controla a elevação vertical, o movimento do braço, avanço e intake
-  }
-
-  //#endregion
-
-  //#region TankControlller
-  
-  private void TankController() {
-    SetVelocityMode();
-    MovimentationTank();
-  }
-
-  // Controle no chassi com ArcadeDrive no eixo esquerdo do controle
-  private void MovimentationTank(){
-    if (xboxControllerTank.getAButton()) {
-      mydrive.stopMotor();
-    }
-    else if (Math.abs(xboxControllerTank.getLeftY()) >= 0.05 || Math.abs(xboxControllerTank.getLeftX()) >= 0.05) {  // Movendo Joystick
-      mydrive.arcadeDrive(xboxControllerTank.getLeftY(), xboxControllerTank.getLeftX()*1.2);
-    }
-    else {
-      mydrive.stopMotor();
-    }
-  }
-
-  // Metodo feito para tirar a limitação de velocidade e defini-la pelo tanto pressionado no gatilho direito
-  private void SetVelocityMode(){
-    if (xboxControllerTank.getLeftTriggerAxis() > 0) {
-      mydrive.setMaxOutput(0.3);
-    }
-    else if (xboxControllerTank.getRightTriggerAxis() > 0) {
-      mydrive.setMaxOutput(1);
-    }
-    else {
-      mydrive.setMaxOutput(0.5);
-    }
-  }
-
-  // Metodo para obter o encoder do motor (não está sendo utilizado)
-  private Double GetSensorPosition() {
-    return ((motores.GetLeftEncoder().getPosition() * 2 * Math.PI * 7.6) / motores.GetLeftEncoder().getCountsPerRevolution()) * 400;
   }
 
   //#endregion
