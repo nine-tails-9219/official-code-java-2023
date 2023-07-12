@@ -15,7 +15,7 @@ public class MotoresTank {
     public CANSparkMax rightMotor2;
 
     public RelativeEncoder leftEncoder1;
-    private RelativeEncoder rightEncoder1;
+    private RelativeEncoder leftEncoder2;
 
     private MotorControllerGroup leftMotors;
     private MotorControllerGroup rightMotors;
@@ -35,7 +35,7 @@ public class MotoresTank {
         rightMotor2 = new CANSparkMax(ID_MOTOR_RIGHT2, MotorType.kBrushless);
 
         leftEncoder1 = leftMotor1.getEncoder();
-        rightEncoder1 = leftMotor2.getEncoder();
+        leftEncoder2 = leftMotor2.getEncoder();
 
         leftMotors = new MotorControllerGroup(leftMotor1, leftMotor2);
         rightMotors = new MotorControllerGroup(rightMotor1, rightMotor2);
@@ -100,7 +100,7 @@ public class MotoresTank {
     }
 
     public RelativeEncoder GetRightEncoder() {
-        return rightEncoder1;
+        return leftEncoder2;
     }
 
     public void SetMaxOutput(double valor){

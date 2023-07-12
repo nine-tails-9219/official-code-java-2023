@@ -47,6 +47,7 @@ public class Robot extends TimedRobot {
 
   // Motores
   private MotoresTank motoresTank;
+  private MotoresTurrent motoresTurrent;
 
   // Autonomo
   private PeriodoAutonomo autonomoRobot;
@@ -58,6 +59,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putData("Auto choices", m_chooser);
 
     motoresTank = new MotoresTank(); // Iniciar os motores
+    motoresTurrent = new MotoresTurrent();
     autonomoRobot = new PeriodoAutonomo(motoresTank); // Iniciar autonomo
   }
 
@@ -114,6 +116,7 @@ public class Robot extends TimedRobot {
       xboxControllerTank.getLeftTriggerAxis(), 
       xboxControllerTank.getRightTriggerAxis()
       );
+    motoresTurrent.TurrentController();
   }
 
   //#endregion
