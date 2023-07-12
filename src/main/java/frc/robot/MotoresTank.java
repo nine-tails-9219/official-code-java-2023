@@ -6,8 +6,9 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
-public class MotoresSkate {
+public class MotoresTank {
     public CANSparkMax leftMotor1;
     public CANSparkMax leftMotor2;
     public CANSparkMax rightMotor1;
@@ -26,7 +27,7 @@ public class MotoresSkate {
     private final int ID_MOTOR_RIGHT1 = 3;
     private final int ID_MOTOR_RIGHT2 = 4;
 
-    public MotoresSkate(){
+    public MotoresTank(){
         // Definindo os dois motores da esquerda e os dois da direita
         leftMotor1 = new CANSparkMax(ID_MOTOR_LETF1, MotorType.kBrushless);
         leftMotor2 = new CANSparkMax(ID_MOTOR_LEFT2, MotorType.kBrushless);
@@ -117,6 +118,15 @@ public class MotoresSkate {
     // Metodo para obter o encoder do motor (não está sendo utilizado)
     public Double GetSensorPosition() {
         return ((GetLeftEncoder().getPosition() * 2 * Math.PI * 7.6) / GetLeftEncoder().getCountsPerRevolution()) * 400;
+    }
+
+    public void UpdateDashboardInfo(){
+        SmartDashboard.putNumber("Encoder Left", GetLeftEncoder().getPosition());
+        SmartDashboard.putNumber("Encoder Right", GetRightEncoder().getPosition());
+    }
+
+    public void SetTankDrive(double leftSpeed, double rightSpeed){
+        controladorMotores.tankDrive(leftSpeed, rightSpeed);
     }
 
 }

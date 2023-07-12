@@ -5,30 +5,10 @@
 //#region Bibliotecas
 
 package frc.robot;
-import java.util.Map;
-import java.util.concurrent.CancellationException;
-import com.ctre.phoenix.motorcontrol.ControlMode;
-import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
-import com.ctre.phoenix.sensors.Pigeon2;
-import com.revrobotics.CANSparkMax;
-import com.revrobotics.RelativeEncoder;
-import com.revrobotics.CANSparkMax.IdleMode;
-import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.cscore.UsbCamera;
-import edu.wpi.first.cscore.VideoMode.PixelFormat;
-import edu.wpi.first.wpilibj.Compressor;
-import edu.wpi.first.wpilibj.DoubleSolenoid;
-import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.DoubleSolenoid.Value;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim.KitbotWheelSize;
-
-import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.Timer;
 
 //#endregion
 
@@ -61,49 +41,15 @@ public class Robot extends TimedRobot {
   private static final String kCustomAuto = "My Auto";
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
-  //#region Definindo variáveis de controles, motores, encoders, pneumática, câmera, etc.
-
   // Controles
   private XboxController xboxControllerTank = new XboxController(0);
-  private XboxController xboxControllerAttachments = new XboxController(1);
+  private XboxController xboxControllerTurrent = new XboxController(1);
 
   // Motores
-  
-  private MotoresSkate motoresSkate;
-  private final int IDMOTOR5 = 5, IDMOTOR6 = 6, IDMOTOR7 = 7,IDPNEUMATICHUB = 8, IDPIGEON = 9;
-  private CANSparkMax motorArmController = new CANSparkMax(IDMOTOR5, MotorType.kBrushless);
-  private WPI_VictorSPX motorExtendArm = new WPI_VictorSPX(IDMOTOR6);
-  private WPI_VictorSPX motorElevation = new WPI_VictorSPX(IDMOTOR7);
+  private MotoresTank motoresTank;
 
-  // Encoder(s)
-  private double valueEncoderMotorArmController = 0;
-  private double valueEncoderMotorExtendArm = 0;
-
-  // Pneumática
-
-  private final Compressor compressor = new Compressor(IDPNEUMATICHUB, PneumaticsModuleType.REVPH);
-  private final DoubleSolenoid doubleSolenoid = new DoubleSolenoid(IDPNEUMATICHUB, PneumaticsModuleType.REVPH, 0, 2);
-
-  // Pigeon 2.0
-  private Pigeon2 pigeon2 = new Pigeon2(IDPIGEON);
-  private double angleRobot = 0;
-  private double angleRobotRounded = 0;
-
-  // Timer
-  private final Timer esperaTimer = new Timer();
-
-  // Interruptores usados no autônomo
-  private boolean climb = false;
-  private boolean stop = false;
-  private boolean stopSolenoid = false;
-  private boolean conditionIdAutonomo3 = false;
-
-  // ID Autonomo
-  private int idAutonomo = 0;
-
-  //#endregion
-
-  //#region Robot
+  // Autonomo
+  private PeriodoAutonomo autonomoRobot;
 
   @Override
   public void robotInit() {
@@ -111,45 +57,22 @@ public class Robot extends TimedRobot {
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
-    motoresSkate = new MotoresSkate(); // Iniciar os motores
-    
-    motorArmController.setInverted(true); // Inverte o sentido do motor do cabo de aço
-
-    compressor.enableDigital();  // Ativa o compressor
+    motoresTank = new MotoresTank(); // Iniciar os motores
+    autonomoRobot = new PeriodoAutonomo(motoresTank); // Iniciar autonomo
   }
 
   @Override
   public void robotPeriodic() {
-    //#region Updates
-
-    //Att encoders dos motores
-    valueEncoderMotorArmController = motorArmController.getEncoder().getPosition();
     
     // Att valores Piegon 2.0
-    angleRobot = (pigeon2.getRoll() * -1) - 5;
-    angleRobotRounded = (angleRobot * 100) / 100;
+    autonomoRobot.UpdatePigeon();
 
-    //#endregion
+    // Dashboard dos motores 
+    motoresTank.UpdateDashboardInfo();
 
-    //#region SmartDashboard
-
-    // Encoder dos motores 
-    SmartDashboard.putNumber("Encoder Left", motoresSkate.GetLeftEncoder().getPosition());
-    SmartDashboard.putNumber("Encoder Right", motoresSkate.GetRightEncoder().getPosition());
-    SmartDashboard.putNumber("Encoder Arm", valueEncoderMotorArmController);
-    SmartDashboard.putNumber("Extend Arm", valueEncoderMotorExtendArm);
-
-    // Variáveis usadas na ChargeStation() e ReverseAnd180()
-    SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
-    SmartDashboard.putNumber("Yaw (EixoX)", pigeon2.getYaw());
-    SmartDashboard.putNumber("Ângulo", angleRobotRounded);
-    SmartDashboard.putBoolean("Subiu", climb);
-    SmartDashboard.putBoolean("Parar", stop);
-
-    //#endregion
+    // Dashboard Autonomo
+    autonomoRobot.UpdateDashboardInfo();
   }
-
-  //#endregion
 
   //#region Structure Autonomous
 
@@ -157,279 +80,40 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
 
     // Seta o Pigeon para o ângulo zero
-    pigeon2.setYaw(0);
-    pigeon2.configFactoryDefault();
+    autonomoRobot.ResetPigeon();
 
     // Zera o timer
-    esperaTimer.restart();
-    motoresSkate.SetMaxOutput(1.0);
+    autonomoRobot.ResetTimer();
+    motoresTank.SetMaxOutput(1.0);
     
-
     // Zera as variáveis usadas no autônomo
-    climb = false;
-    stop = false;
-    stopSolenoid = false;
-    conditionIdAutonomo3 = false;
+    autonomoRobot.ResetInterruptors();
 
-    doubleSolenoid.set(Value.kForward); // Fecha a solenoide por padrão
-
-    motoresSkate.SetPositionEncoderMotorLeft(0);
-    motorArmController.getEncoder().setPosition(0);
-
-    /*==================================
-    *   MUDE O PERÍODO AUTÔNOMO AQUI   *
-    *    !!!!!!!!!!!!!!!!!!!!!!!!!     *
-    ===================================*/
-    idAutonomo = 1;
+    // Posiciona o encoder do motor esquerdo para 0
+    motoresTank.SetPositionEncoderMotorLeft(0);
   }
 
   @Override
   public void autonomousPeriodic() {
-    switch (idAutonomo) {
-      case 1:
-        DeliverMiddleAndExitCommunity(); // Entrega no mid e sai da comunidade
-        break;
-
-      case 2: 
-        CubeInLowAndChargeStation(); // Entrega o cubo no low e sobre na charge station
-        break;
-
-      case 3: 
-        DeliverMiddleAndReverseAnd180AndChargeStation();// Entrega no mid, chega para trás, vira 180° e sobe na charge station
-        break;
-    }
+    autonomoRobot.PeriodoAutonomo();
   }
-
-  //#endregion
-  
-  //#region Autonomous methods
-
-  private void DeliverMiddleAndExitCommunity(){
-    
-    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
-      motorArmController.set(1);
-    }
-    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
-      motorArmController.set(0);
-
-      if (stopSolenoid == false) {
-        doubleSolenoid.set(Value.kReverse);
-
-        esperaTimer.restart();
-        while (esperaTimer.get() < 0.5){
-          motorArmController.set(-0.1);
-        }
-
-        stopSolenoid = true;
-      }
-    }
-    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
-        motorArmController.set(-1);  
-    }
-    else{
-      motorArmController.stopMotor();
-
-      // Exit Community
-      if (motores.leftEncoder1.getPosition() > -79.5) { //3,5M //Conta = ((QtdEmCmQueDeseja / 47,1) * -10,71)
-        controladorMotores.tankDrive(0.5, 0.5);
-      }
-      else {
-        controladorMotores.stopMotor();
-      }
-    }
-  }
-
-  private void CubeInLowAndChargeStation(){
-
-    while (esperaTimer.get() < 1.5) {
-      controladorMotores.tankDrive(0.3, 0.3);
-    }
-
-    while (esperaTimer.get() < 1.7) {
-      controladorMotores.tankDrive(-0.6, -0.6);
-    }
-
-    if (angleRobotRounded > 4) {
-      climb = true;
-    }
-
-    if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
-      stop = true;
-    }
-    
-    if (climb == false) {
-      controladorMotores.tankDrive(-0.5, -0.5);
-    }
-    else if (angleRobotRounded < 10 && stop == false) {
-      controladorMotores.tankDrive(-0.4, -0.4);
-    }
-    else if (angleRobotRounded >= 10 && stop == false) {
-      controladorMotores.tankDrive(-0.35, -0.35);
-    }
-    else if (stop == true) {
-      if (angleRobotRounded > 4) {  // 4
-        controladorMotores.tankDrive(-0.25, -0.25);
-      }
-      else if (angleRobotRounded < -4){ // -4
-        controladorMotores.tankDrive(0.3, 0.3);  // 0.25
-      }
-      else {
-        controladorMotores.tankDrive(0, 0);
-      }
-    }
-  }
-
-  private void DeliverMiddleAndReverseAnd180AndChargeStation() {
-
-    if (valueEncoderMotorArmController < 78 && stopSolenoid == false){    // 78
-      motorArmController.set(1);
-    }
-    else if (valueEncoderMotorArmController >= 78 && stopSolenoid == false){    // 78
-      motorArmController.set(0);
-
-      if (stopSolenoid == false) {
-        doubleSolenoid.set(Value.kReverse);
-
-        esperaTimer.restart();
-        while (esperaTimer.get() < 0.5){
-          motorArmController.set(-0.1);
-        }
-
-        stopSolenoid = true;
-      }
-    }
-    else if (stopSolenoid == true && valueEncoderMotorArmController > 10) {
-        motorArmController.set(-1);  
-    }
-    else{
-      motorArmController.stopMotor();
-
-      if (conditionIdAutonomo3 == false){
-        // ReverseAnd180
-        while (motores.GetLeftEncoder().getPosition() > -7) {
-          controladorMotores.tankDrive(0.5, 0.5);
-        }
-
-        while (pigeon2.getYaw() < 160){
-          controladorMotores.tankDrive(0.5, -0.5);
-        }
-
-        conditionIdAutonomo3 = true;
-      }
-      else{
-        // ChargeStation
-        if (angleRobotRounded > 4) {
-          climb = true;
-        }
-
-        if (climb == true && angleRobotRounded > -3 && angleRobotRounded < 3){
-          stop = true;
-        }
-        
-        if (climb == false) {
-          controladorMotores.tankDrive(-0.5, -0.5);
-        }
-        else if (angleRobotRounded < 10 && stop == false) {
-          controladorMotores.tankDrive(-0.4, -0.4);
-        }
-        else if (angleRobotRounded >= 10 && stop == false) {
-          controladorMotores.tankDrive(-0.35, -0.35);
-        }
-        else if (stop == true) {
-          if (angleRobotRounded > 4) {  // 4
-            controladorMotores.tankDrive(-0.25, -0.25);
-          }
-          else if (angleRobotRounded < -4){ // -4
-            controladorMotores.tankDrive(0.3, 0.3);  // 0.25
-          }
-          else {
-            controladorMotores.tankDrive(0, 0);
-          }
-        }
-      }
-    }  
-  }
-  
-  //#endregion
 
   //#region Structure Teleop
 
   @Override
   public void teleopInit() {
-    motoresSkate.SetSafetyEnabled(false);
+    motoresTank.SetSafetyEnabled(false);
   }
 
   @Override
   public void teleopPeriodic() {
-    motoresSkate.TankController(// Controla a movimentação do robô
+    motoresTank.TankController(// Controla a movimentação do robô
       xboxControllerTank.getAButton(),
       xboxControllerTank.getLeftY(), 
       xboxControllerTank.getLeftX(), 
       xboxControllerTank.getLeftTriggerAxis(), 
       xboxControllerTank.getRightTriggerAxis()
       );
-      
-    ControlBody(); // Controla a elevação vertical, o movimento do braço, avanço e intake
-  }
-
-  //#endregion
- 
-  //#region ControlBody
-
-  private void ControlBody() {
-    ControlElevation();
-    ExtendArm();
-    ControlArm();
-    ControlIntake();  
-  }
-
-  // Controle da elevação vertical 
-  private void ControlElevation() {  
-    // Apenas um poderá ser acionado por vez
-    if ((xboxControllerAttachments.getLeftTriggerAxis() > 0 && xboxControllerAttachments.getRightTriggerAxis() == 0) || (xboxControllerAttachments.getLeftTriggerAxis() == 0 && xboxControllerAttachments.getRightTriggerAxis() > 0)) {
-      if (xboxControllerAttachments.getLeftTriggerAxis() > 0) { // Descer elevador
-        motorElevation.set(xboxControllerAttachments.getLeftTriggerAxis());
-      }
-      else if (xboxControllerAttachments.getRightTriggerAxis() > 0) { // Subir elevador
-        motorElevation.set(xboxControllerAttachments.getRightTriggerAxis() * -1);
-      }
-    }
-    else {
-      motorElevation.stopMotor();
-    }
-  }
-
-  // Controle do avanço
-  private void ExtendArm() {  // 225
-    if (xboxControllerAttachments.getRightY() != 0) { // Estende
-      motorExtendArm.set(xboxControllerAttachments.getRightY()*-1);
-    }
-    else {
-      motorExtendArm.stopMotor();
-      motorExtendArm.set(0);
-    }    
-  }
-  
-  // Controle do cabo de aço
-  private void ControlArm() { // -1 para cima → recolher  1 para baixo → estender
-
-    if (Math.abs(xboxControllerAttachments.getLeftY()) > 0.1)
-    {
-      motorArmController.set(xboxControllerAttachments.getLeftY());
-    }
-    else{
-      motorArmController.set(0);
-    }
-  }
-
-  //  Controle do intake
-  private void ControlIntake() {
-    if (xboxControllerAttachments.getLeftBumper()) {  // Abrir
-      doubleSolenoid.set(Value.kReverse);
-    }
-    else if (xboxControllerAttachments.getRightBumper()) {  // Fecahr
-      doubleSolenoid.set(Value.kForward);
-    }
   }
 
   //#endregion
