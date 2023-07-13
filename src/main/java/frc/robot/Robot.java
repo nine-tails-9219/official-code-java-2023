@@ -109,14 +109,14 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-    motoresTank.TankController(// Controla a movimentação do robô
+    /*motoresTank.TankController(// Controla a movimentação do robô
       xboxControllerTank.getAButton(),
       xboxControllerTank.getLeftY(), 
       xboxControllerTank.getLeftX(), 
       xboxControllerTank.getLeftTriggerAxis(), 
       xboxControllerTank.getRightTriggerAxis()
-      );
-    motoresTurrent.TurrentController();
+      );*/
+    motoresTurrent.TurrentController(xboxControllerTurrent.getLeftY(),xboxControllerTurrent.getLeftX(),xboxControllerTurrent.getRightY());
   }
 
   //#endregion
