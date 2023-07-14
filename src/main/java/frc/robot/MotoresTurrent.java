@@ -29,8 +29,8 @@ public class MotoresTurrent {
 
     private final int ID_MOTOR_LETF1 = 5;
     private final int ID_MOTOR_LEFT2 = 7;
-    private final int ID_MOTOR_RIGHT1 = 6;
-    private final int ID_MOTOR_RIGHT2 = 8;
+    private final int ID_MOTOR_RIGHT1 = 8;
+    private final int ID_MOTOR_RIGHT2 = 6;
     private final int ID_MOTOR_TRILHO = 9;
 
     private double speed = 1f;
@@ -72,8 +72,8 @@ public class MotoresTurrent {
     // Controle da torreta do robo
     private void MovimentationTurrent(double leftY, double leftX){
         if (Math.abs(leftY) >= 0.05) {  // Movendo Joystick
-            
-            controladorMotores.arcadeDrive(leftY*speed,0);
+            //controladorMotores.arcadeDrive(leftY*speed,0);
+            controladorMotores.tankDrive(leftY, leftY*-1);
         }
         else {
             controladorMotores.stopMotor();
