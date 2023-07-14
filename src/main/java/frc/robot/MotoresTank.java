@@ -6,7 +6,6 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class MotoresTank {
     public CANSparkMax leftMotor1;
@@ -121,8 +120,8 @@ public class MotoresTank {
     }
 
     public void UpdateDashboardInfo(){
-        SmartDashboard.putNumber("Encoder Left", GetLeftEncoder().getPosition());
-        SmartDashboard.putNumber("Encoder Right", GetRightEncoder().getPosition());
+        //SmartDashboard.putNumber("Encoder Left", GetLeftEncoder().getPosition());
+        //SmartDashboard.putNumber("Encoder Right", GetRightEncoder().getPosition());
     }
 
     public void SetTankDrive(double leftSpeed, double rightSpeed){

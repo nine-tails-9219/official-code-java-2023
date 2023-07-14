@@ -6,8 +6,10 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class MotoresTurrent {
     public CANSparkMax leftMotor1;
@@ -31,8 +33,13 @@ public class MotoresTurrent {
     private final int ID_MOTOR_RIGHT2 = 8;
     private final int ID_MOTOR_TRILHO = 9;
 
-    private double speed = 0.5f;
-    private double speedRail = 0.5f;
+    private double speed = 1f;
+    private double speedRail = 1f;
+
+    private Encoder encoderRail = new Encoder(1,2,true);
+    private int countEncoderRail =0;
+    private int maxCountEncoderRail = 15000;
+    private int minCountEncoderRail = 0;
 
     public MotoresTurrent(){
         // Definindo os dois motores da esquerda e os dois da direita
@@ -51,6 +58,9 @@ public class MotoresTurrent {
         rightMotors = new MotorControllerGroup(rightMotor1, rightMotor2);
 
         controladorMotores = new DifferentialDrive(leftMotors, rightMotors); // Define o direcionador
+
+        encoderRail.reset();
+        
         SetSafetyEnabled(false);
     }
 
@@ -62,6 +72,7 @@ public class MotoresTurrent {
     // Controle da torreta do robo
     private void MovimentationTurrent(double leftY, double leftX){
         if (Math.abs(leftY) >= 0.05) {  // Movendo Joystick
+            
             controladorMotores.arcadeDrive(leftY*speed,0);
         }
         else {
@@ -72,7 +83,32 @@ public class MotoresTurrent {
     // Controle do trilho do robo
     private void MovimentationRailTurrent(double rightY){
         if (Math.abs(rightY) >= 0.05) {  // Movendo Joystick
-            motorRail.set(ControlMode.PercentOutput, rightY*speedRail);
+            countEncoderRail = encoderRail.get();
+            //System.out.println("#CONTADOR: "+countEncoderRail);
+            if(countEncoderRail>=minCountEncoderRail && countEncoderRail<=maxCountEncoderRail){
+                motorRail.set(ControlMode.PercentOutput, rightY*speedRail);
+            }
+            else{
+                if(countEncoderRail>maxCountEncoderRail){
+                    if(rightY>0.05){
+                        motorRail.set(ControlMode.PercentOutput, rightY*speedRail);
+                    }
+                    else{
+                        motorRail.set(ControlMode.PercentOutput, 0);
+                    }
+                }
+                else if(countEncoderRail<minCountEncoderRail){
+                    if(rightY<0.05){
+                        motorRail.set(ControlMode.PercentOutput, rightY*speedRail);
+                    }
+                    else{
+                        motorRail.set(ControlMode.PercentOutput, 0);
+                    }
+                }
+                else{
+                    motorRail.set(ControlMode.PercentOutput, 0);
+                }
+            }
         }
         else {
             motorRail.set(ControlMode.PercentOutput,0);

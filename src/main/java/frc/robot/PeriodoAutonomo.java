@@ -2,7 +2,6 @@ package frc.robot;
 
 import com.ctre.phoenix.sensors.Pigeon2;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class PeriodoAutonomo {
     // Pigeon 2.0
@@ -35,11 +34,11 @@ public class PeriodoAutonomo {
 
     public void UpdateDashboardInfo(){
         // Variáveis usadas na ChargeStation() e ReverseAnd180()
-        SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
-        SmartDashboard.putNumber("Yaw (EixoX)", pigeon2.getYaw());
-        SmartDashboard.putNumber("Ângulo", angleRobotRounded);
-        SmartDashboard.putBoolean("Subiu", climb);
-        SmartDashboard.putBoolean("Parar", stop);
+        //SmartDashboard.putNumber("Roll", pigeon2.getRoll()); 
+        //SmartDashboard.putNumber("Yaw (EixoX)", pigeon2.getYaw());
+        //SmartDashboard.putNumber("Ângulo", angleRobotRounded);
+        //SmartDashboard.putBoolean("Subiu", climb);
+        //SmartDashboard.putBoolean("Parar", stop);
     }
 
     public void ResetPigeon(){
