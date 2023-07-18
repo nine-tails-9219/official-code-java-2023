@@ -33,7 +33,7 @@ public class MotoresTurrent {
     private final int ID_MOTOR_RIGHT2 = 6;
     private final int ID_MOTOR_TRILHO = 9;
 
-    private double speed = 1f;
+    private double speed = 0.35f;
     private double speedRail = 1f;
 
     private Encoder encoderRail = new Encoder(1,2,true);
@@ -58,6 +58,7 @@ public class MotoresTurrent {
         rightMotors = new MotorControllerGroup(rightMotor1, rightMotor2);
 
         controladorMotores = new DifferentialDrive(leftMotors, rightMotors); // Define o direcionador
+        
 
         encoderRail.reset();
         
@@ -73,7 +74,7 @@ public class MotoresTurrent {
     private void MovimentationTurrent(double leftY, double leftX){
         if (Math.abs(leftY) >= 0.05) {  // Movendo Joystick
             //controladorMotores.arcadeDrive(leftY*speed,0);
-            controladorMotores.tankDrive(leftY, leftY*-1);
+            controladorMotores.tankDrive(leftY*speed, (leftY*-1)*speed);
         }
         else {
             controladorMotores.stopMotor();
